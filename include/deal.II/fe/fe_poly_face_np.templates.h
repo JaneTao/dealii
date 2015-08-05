@@ -252,6 +252,7 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
                 for (unsigned int k=0; k<this->dofs_per_quad; ++k)
                   data.shape_values(foffset+k,i) = fe_data.values[k];
               }
+              break;
           }
           // case 2:
           // {
