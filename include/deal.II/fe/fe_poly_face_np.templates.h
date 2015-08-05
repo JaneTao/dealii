@@ -66,11 +66,16 @@ template <class POLY, int dim, int spacedim>
 UpdateFlags
 FE_PolyFace_NP<POLY,dim,spacedim>::update_each (const UpdateFlags flags) const
 {
-  UpdateFlags out = flags | update_values;
+  UpdateFlags out = flags;
+  if (flags & update_values)
+    // if we are asked to compute values, we will need
+    // the normal vectors already computed by the mapping
+    // object
+    out |= update_normal_vectors;
   if (flags & update_gradients)
-    out |= update_gradients | update_covariant_transformation;
+    out |= update_gradients | update_covariant_transformation | update_normal_vectors;
   if (flags & update_hessians)
-    out |= update_hessians | update_covariant_transformation;
+    out |= update_hessians | update_covariant_transformation | update_normal_vectors;
   if (flags & update_normal_vectors)
     out |= update_normal_vectors | update_JxW_values;
 
