@@ -31,6 +31,7 @@ SET(_src
   fe_dg_vector.cc
   fe_dg_vector_np.cc
   fe_face.cc
+  fe_face_np.cc
   fe_nedelec.cc
   fe_nothing.cc
   fe_poly.cc
@@ -71,6 +72,7 @@ SET(_inst
   fe_dg_vector.inst.in
   fe_dg_vector_np.inst.in
   fe_face.inst.in
+  fe_face_np.inst.in
   fe.inst.in
   fe_nedelec.inst.in
   fe_nothing.inst.in
