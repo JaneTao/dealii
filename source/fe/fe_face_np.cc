@@ -118,8 +118,8 @@ FiniteElementDomination::Domination
 FE_FaceP_NP<dim,spacedim>::
 compare_for_face_domination (const FiniteElement<dim,spacedim> &fe_other) const
 {
-  if (const FE_FaceP<dim,spacedim> *fe_q_other
-      = dynamic_cast<const FE_FaceP<dim,spacedim>*>(&fe_other))
+  if (const FE_FaceP_NP<dim,spacedim> *fe_q_other
+      = dynamic_cast<const FE_FaceP_NP<dim,spacedim>*>(&fe_other))
     {
       if (this->degree < fe_q_other->degree)
         return FiniteElementDomination::this_element_dominates;
