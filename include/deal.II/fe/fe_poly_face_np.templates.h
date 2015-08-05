@@ -66,7 +66,7 @@ template <class POLY, int dim, int spacedim>
 UpdateFlags
 FE_PolyFace_NP<POLY,dim,spacedim>::update_each (const UpdateFlags flags) const
 {
-  UpdateFlags out = flags & update_values;
+  UpdateFlags out = flags | update_values;
   if (flags & update_gradients)
     out |= update_gradients | update_covariant_transformation;
   if (flags & update_hessians)
@@ -202,7 +202,6 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
 
   Assert (flags & update_normal_vectors, ExcInternalError());
   Assert (flags & update_quadrature_points, ExcInternalError());
-  std::out <<"flags:  "<<flags<<std::endl; 
 
   if (flags & update_values)
     for (unsigned int i=0; i<quadrature.size(); ++i)
