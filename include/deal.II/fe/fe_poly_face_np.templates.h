@@ -100,7 +100,7 @@ typename Mapping<dim,spacedim>::InternalDataBase *
 FE_PolyFace_NP<POLY,dim,spacedim>::get_face_data (
   const UpdateFlags update_flags,
   const Mapping<dim,spacedim> &,
-  const Quadrature<dim-1>& quadrature) const
+  const Quadrature<dim-1>&) const
 {
   // generate a new data object and
   // initialize some fields
@@ -223,7 +223,7 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
                   face_center += cell->face(face)->vertex(v);
               face_center /= GeometryInfo<dim>::vertices_per_face;
               // 2. get normal vector to the face
-              Tensor<1,dim> nv = data.normal_vector[0] - Point<dim>(0);
+              Tensor<1,dim> nv = data.normal_vectors[0] - Point<dim>();
               // 3. get direction to the first quadrature point
               direction_x = data.quadrature_points[0] - face_center;
               direction_x /= direction_x.norm();
@@ -305,8 +305,8 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_subface_values (
 
   const UpdateFlags flags(fe_data.update_once | fe_data.update_each);
 
-  const unsigned int foffset = fe_data.shape_values.size() * face;
-  const unsigned int offset = subface*quadrature.size();
+  // const unsigned int foffset = fe_data.shape_values.size() * face;
+  // const unsigned int offset = subface*quadrature.size();
 
   // if (flags & update_values)
   //   for (unsigned int i=0; i<quadrature.size(); ++i)
