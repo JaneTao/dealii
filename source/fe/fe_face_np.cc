@@ -106,7 +106,7 @@ FE_FaceP_NP<dim,spacedim>::get_dpo_vector (const unsigned int deg)
 
 template <int dim, int spacedim>
 bool
-FE_FaceP<dim,spacedim>::hp_constraints_are_implemented () const
+FE_FaceP_NP<dim,spacedim>::hp_constraints_are_implemented () const
 {
   return true;
 }
