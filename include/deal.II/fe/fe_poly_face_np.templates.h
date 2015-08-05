@@ -234,7 +234,7 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
             // 5. find out manifold corrdinate
             Tensor<1,dim> temp = data.quadrature_points[i] - face_center;
             Point<dim-1> proj;
-            for(unsigned int d=0; d<=dim; ++d)
+            for(unsigned int d=0; d<dim; ++d)
             {
               proj[0] += temp[d] * direction_x[d];
               proj[1] += temp[d] * direction_y[d];
