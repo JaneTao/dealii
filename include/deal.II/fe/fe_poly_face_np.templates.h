@@ -71,8 +71,8 @@ FE_PolyFace_NP<POLY,dim,spacedim>::update_each (const UpdateFlags flags) const
     out |= update_gradients | update_covariant_transformation;
   if (flags & update_hessians)
     out |= update_hessians | update_covariant_transformation;
-  if (flags & update_cell_normal_vectors)
-    out |= update_cell_normal_vectors | update_JxW_values;
+  if (flags & update_normal_vectors)
+    out |= update_normal_vectors | update_JxW_values;
 
   return out;
 }
@@ -202,6 +202,7 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
 
   Assert (flags & update_normal_vectors, ExcInternalError());
   Assert (flags & update_quadrature_points, ExcInternalError());
+  std::out <<"flags:  "<<flags<<std::endl; 
 
   if (flags & update_values)
     for (unsigned int i=0; i<quadrature.size(); ++i)
