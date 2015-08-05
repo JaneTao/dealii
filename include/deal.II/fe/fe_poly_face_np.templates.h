@@ -316,7 +316,7 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_subface_values (
   //       for (unsigned int k=0; k<fe_data.shape_values.size(); ++k)
   //         data.shape_values(foffset+k,i) = fe_data.shape_values[k][i+offset];
   //     }
-  Assert (!(flags & values), ExcNotImplemented());
+  Assert (!(flags & update_values), ExcNotImplemented());
   Assert (!(flags & update_gradients), ExcNotImplemented());
   Assert (!(flags & update_hessians), ExcNotImplemented());
 }
