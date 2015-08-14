@@ -268,12 +268,13 @@ PolynomialsACFull<dim>::compute (const Point<dim>            &unit_point,
               // - p(z) q(x)
               values[start+1][2] = -monovali[2][0] * monovalk[0][0];
               values[start+1][0] = 0.;
-
+              if(degree()>1){
               // z p'(x) q(y)
               values[start+2][2] = unit_point(2) * monovali[0][1] * monovalk[1][0];
               // -p(x) q(y)
               values[start+2][0] = -monovali[0][0] * monovalk[1][0];
               values[start+2][1] = 0.;
+            }
             }
           if (grads.size() != 0)
             {
@@ -297,6 +298,7 @@ PolynomialsACFull<dim>::compute (const Point<dim>            &unit_point,
               grads[start+1][0][2] = 0.;
               grads[start+1][0][0] = 0.;
 
+              if(degree()>1){
               grads[start+2][2][2] = monovali[0][1] * monovalk[1][0];
               grads[start+2][2][0] = unit_point(2) * monovali[0][2] * monovalk[1][0];
               grads[start+2][2][1] = unit_point(2) * monovali[0][1] * monovalk[1][1];
@@ -307,11 +309,15 @@ PolynomialsACFull<dim>::compute (const Point<dim>            &unit_point,
               grads[start+2][1][0] = 0.;
               grads[start+2][1][1] = 0.;
             }
+            }
           if (grad_grads.size() != 0)
             {
               Assert(false,ExcNotImplemented());
             }
         }
+
+      if(degree()==1) start--;
+      
       Assert(start == n_pols, ExcInternalError());
     }
 
@@ -322,8 +328,8 @@ unsigned int
 PolynomialsACFull<dim>::compute_n_pols(unsigned int k)
 {
   if (dim == 1) return k+2;
-  if (dim == 2) return (k+1)*(k+2)+(k+1)+2 - ((k==0)?1:0);
-  if (dim == 3) return ((k+1)*(k+2)*(k+3))/2+(k+2)*(k+1)/2+3*(k+1);
+  if (dim == 2) return (k+1)*(k+2)+(k+1)+2-((k==0)?1:0);
+  if (dim == 3) return ((k+1)*(k+2)*(k+3))/2+(k+2)*(k+1)/2+3*(k+1)-((k==0)?1:0);
   Assert(false, ExcNotImplemented());
   return 0;
 }

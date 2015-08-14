@@ -161,7 +161,7 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::FE_PolyTensor_NP (const unsigned int degree
         }
       else
         {
-          piola_boundary = 3*(degree+1);
+          piola_boundary = 3*(degree+1) - ((degree==0) ? 1 : 0);
         }
     }
   // std::cout<<"degree: "<<degree<<" piola_boundary: "<<piola_boundary<<" poly_space: "
