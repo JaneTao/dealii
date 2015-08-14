@@ -208,6 +208,10 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
   Assert (flags & update_normal_vectors, ExcInternalError());
   Assert (flags & update_quadrature_points, ExcInternalError());
 
+  Point<dim> face_center;
+  Tensor<1,dim> direction_x;
+  Tensor<1,dim> direction_y;
+
   if (flags & update_values)
     for (unsigned int i=0; i<quadrature.size(); ++i)
       {
@@ -217,45 +221,58 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
           {
           case 3:
           {
-            Point<dim> face_center;
-            Tensor<1,dim> direction_x;
-            Tensor<1,dim> direction_y;
-
-            if(i==0)
+           if(i==0)
             {
               // 1. get face center point
               for (unsigned int v=0; v<GeometryInfo<dim>::vertices_per_face; ++v)
                   face_center += cell->face(face)->vertex(v);
               face_center /= GeometryInfo<dim>::vertices_per_face;
+              // std::cout<<"face_center " <<face_center <<std::endl;
               // 2. get normal vector to the face
-              Tensor<1,dim> nv = data.normal_vectors[0] - Point<dim>();
+              // Tensor<1,dim> nv = data.normal_vectors[0] - Point<dim>();
+              // std::cout<<"normal_vectors "<<nv <<std::endl;
               // 3. get direction to the first quadrature point
-              direction_x = data.quadrature_points[0] - face_center;
+              direction_x = cell->face(face)->vertex(1) - cell->face(face)->vertex(0);
               direction_x /= direction_x.norm();
+
+              Tensor<1,dim> direction_z = cell->face(face)->vertex(2) - cell->face(face)->vertex(0);
+              direction_z /= direction_z.norm();
+              Tensor<1,dim> nv;
+              cross_product(nv, direction_z, direction_x);
+               // std::cout<<"direction_x "<<direction_x <<std::endl;
               // 4. cross product of direction 1 and normal vector
               cross_product(direction_y, direction_x, nv);
               direction_y /= direction_y.norm();
+               // std::cout<<"direction_y "<<direction_y <<std::endl;
             }
-            // 5. find out manifold corrdinate
-            Tensor<1,dim> temp = data.quadrature_points[i] - face_center;
+            // 5. find out manifold coordinate
+            // Tensor<1,dim> temp = data.quadrature_points[i] - cell->face(face)->vertex(0);
+            Tensor<1,dim> temp = data.quadrature_points[i] - face_center;           
             Point<dim-1> proj;
             for(unsigned int d=0; d<dim; ++d)
             {
               proj[0] += temp[d] * direction_x[d];
               proj[1] += temp[d] * direction_y[d];
             }
+             // std::cout<<"manifold projection "<<proj <<std::endl;
             // 6. scale it
             const double measure = cell->measure();
             const double h = std::pow(measure, 1.0/dim);
+            // std::cout<<"h "<< h <<std::endl;
 
             // Fill data for quad shape functions
             if (this->dofs_per_quad !=0)
               {
                 poly_space.compute(proj/h, fe_data.values,
                                    fe_data.grads, fe_data.grad_grads);
+                // std::cout<<"proj/h "<<proj/h<<std::endl;
                 const unsigned int foffset = this->first_quad_index + this->dofs_per_quad * face;
+                // std::cout<<"foffset "<<foffset<<std::endl;
                 for (unsigned int k=0; k<this->dofs_per_quad; ++k)
+                {
                   data.shape_values(foffset+k,i) = fe_data.values[k];
+                  // std::cout<<fe_data.values[k]<<" "<<std::endl;
+                }
               }
               break;
           }
