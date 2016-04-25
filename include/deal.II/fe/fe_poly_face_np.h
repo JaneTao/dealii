@@ -254,6 +254,9 @@ protected:
      * In particular, we can simply copy the same set of values to each of the
      * faces.
      */
+
+     std::vector<std::vector<double> > shape_values;
+     
      // some scratch arrays
      std::vector<double> values;
      std::vector<Tensor<1,dim-1> > grads;

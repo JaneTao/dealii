@@ -934,6 +934,17 @@ namespace MatrixCreator
             copy_data.cell_vector.push_back(Vector<double> (copy_data.dofs_per_cell));
             fe_values.reinit (cell, face);
 
+            // for(unsigned int i=0; i<fe_values.n_quadrature_points; ++i){
+            //   std::cout<<"quadrature points:  "
+            //   << fe_values.quadrature_point(i) << std::endl
+            //   <<"JxW: "<<fe_values.JxW(i) <<std::endl;
+
+            //   for(unsigned int j=0; j<fe_values.dofs_per_cell; ++j)
+            //     std::cout<< fe_values.shape_value(j,i)<<"   ";
+
+            //   std::cout<<std::endl;
+            // }
+
             if (fe_is_system)
               // FE has several components
               {
@@ -1052,6 +1063,10 @@ namespace MatrixCreator
                   }
               }
 
+            // copy_data.cell_matrix.back().print(std::cout);
+            // for(unsigned int i=0; i<fe_values.dofs_per_cell; ++i)
+            //   std::cout<<copy_data.cell_vector.back()(i)<<"  ";
+            // std::cout<<"=================================================="<<std::endl;
 
             cell->face(face)->get_dof_indices (dofs_on_face_vector);
             // for each dof on the cell, have a

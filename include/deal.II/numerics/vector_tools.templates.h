@@ -2231,11 +2231,18 @@ namespace VectorTools
       SparseMatrix<double> mass_matrix(sparsity);
       Vector<double>       rhs(sparsity.n_rows());
 
-
       MatrixCreator::create_boundary_mass_matrix (mapping, dof, q,
                                                   mass_matrix, boundary_functions,
                                                   rhs, dof_to_boundary_mapping, (const Function<spacedim> *) 0,
                                                   component_mapping);
+
+
+      // std::cout<<"mass matrix:"<<std::endl;
+      // mass_matrix.print(std::cout);
+      // std::cout<<"mass rhs:"<<std::endl;
+      // for(auto i: rhs)
+      //   std::cout<<i<< "  ";
+      // std::cout<<std::endl;
 
       // For certain weird elements,
       // there might be degrees of

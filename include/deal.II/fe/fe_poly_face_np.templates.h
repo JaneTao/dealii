@@ -105,7 +105,7 @@ typename Mapping<dim,spacedim>::InternalDataBase *
 FE_PolyFace_NP<POLY,dim,spacedim>::get_face_data (
   const UpdateFlags update_flags,
   const Mapping<dim,spacedim> &,
-  const Quadrature<dim-1>&) const
+  const Quadrature<dim-1>& quadrature) const
 {
   // generate a new data object and
   // initialize some fields
@@ -120,24 +120,29 @@ FE_PolyFace_NP<POLY,dim,spacedim>::get_face_data (
   data->update_flags = data->update_once | data->update_each;
 
   const UpdateFlags flags(data->update_flags);
+  const unsigned int n_q_points = quadrature.size();
+
+  // some scratch arrays
+  // std::vector<double> values(0);
+  // std::vector<Tensor<1,dim-1> > grads(0);
+  // std::vector<Tensor<2,dim-1> > grad_grads(0);
 
   if (flags & update_values)
     {
       data->values.resize (poly_space.n());
+    // }
+      data->shape_values.resize (poly_space.n(),
+                                 std::vector<double> (n_q_points));
+      for (unsigned int i=0; i<n_q_points; ++i)
+        {
+          poly_space.compute(quadrature.point(i),
+                             data->values, data->grads, data->grad_grads);
+  
+          for (unsigned int k=0; k<poly_space.n(); ++k)
+            data->shape_values[k][i] = data->values[k];
+        }
     }
 
-  //     values.resize (poly_space.n());
-  //     data->shape_values.resize (poly_space.n(),
-  //                                std::vector<double> (n_q_points));
-  //     for (unsigned int i=0; i<n_q_points; ++i)
-  //       {
-  //         poly_space.compute(quadrature.point(i),
-  //                            values, grads, grad_grads);
-  //
-  //         for (unsigned int k=0; k<poly_space.n(); ++k)
-  //           data->shape_values[k][i] = values[k];
-  //       }
-  //   }
   // No derivatives of this element
   // are implemented.
   if (flags & update_gradients || flags & update_hessians)
@@ -224,9 +229,9 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
            if(i==0)
             {
               // 1. get face center point
-              for (unsigned int v=0; v<GeometryInfo<dim>::vertices_per_face; ++v)
-                  face_center += cell->face(face)->vertex(v);
-              face_center /= GeometryInfo<dim>::vertices_per_face;
+              // for (unsigned int v=0; v<GeometryInfo<dim>::vertices_per_face; ++v)
+              //     face_center += cell->face(face)->vertex(v);
+              // face_center /= GeometryInfo<dim>::vertices_per_face;
               // std::cout<<"face_center " <<face_center <<std::endl;
               // 2. get normal vector to the face
               // Tensor<1,dim> nv = data.normal_vectors[0] - Point<dim>();
@@ -246,8 +251,8 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
                // std::cout<<"direction_y "<<direction_y <<std::endl;
             }
             // 5. find out manifold coordinate
-            // Tensor<1,dim> temp = data.quadrature_points[i] - cell->face(face)->vertex(0);
-            Tensor<1,dim> temp = data.quadrature_points[i] - face_center;           
+            Tensor<1,dim> temp = data.quadrature_points[i] - cell->face(face)->vertex(0);
+            // Tensor<1,dim> temp = data.quadrature_points[i] - face_center;           
             Point<dim-1> proj;
             for(unsigned int d=0; d<dim; ++d)
             {
