@@ -213,6 +213,10 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
   Assert (flags & update_normal_vectors, ExcInternalError());
   Assert (flags & update_quadrature_points, ExcInternalError());
 
+  // 7.7
+  Assert (flags & update_JxW_values, ExcInternalError());
+  std::vector<double> weights = quadrature.get_weights ();
+
   Point<dim> face_center;
   Tensor<1,dim> direction_x;
   Tensor<1,dim> direction_y;
@@ -261,8 +265,9 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
             }
              // std::cout<<"manifold projection "<<proj <<std::endl;
             // 6. scale it
-            const double measure = cell->measure();
-            const double h = std::pow(measure, 1.0/dim);
+            const double measure = cell->face(face)->measure();
+            // std::cout<<" measure "<< measure <<std::endl;
+            const double h = std::sqrt(measure);
             // std::cout<<"h "<< h <<std::endl;
 
             // Fill data for quad shape functions
@@ -277,6 +282,11 @@ FE_PolyFace_NP<POLY,dim,spacedim>::fill_fe_face_values (
                 {
                   data.shape_values(foffset+k,i) = fe_data.values[k];
                   // std::cout<<fe_data.values[k]<<" "<<std::endl;
+
+                  // 7.7
+                  // data.shape_values(foffset+k,i) = (fe_data.values[k] * (weights[i] * measure )
+                  //                                  )
+                  //                                  / data.JxW_values[i] ;
                 }
               }
               break;
