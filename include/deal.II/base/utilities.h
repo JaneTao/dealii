@@ -69,6 +69,15 @@ namespace Utilities
   needed_digits (const unsigned int max_number);
 
   /**
+   * Added by Zhen
+   */
+  unsigned int
+  n_choose_k (const unsigned int n, const unsigned int k);
+
+  unsigned int
+  factorial (const unsigned int n);
+
+  /**
    * Given a string, convert it to an integer. Throw an assertion if that is
    * not possible.
    */

@@ -115,6 +115,17 @@ namespace Utilities
     return 0;
   }
 
+  unsigned int
+  n_choose_k (const unsigned int n, const unsigned int k)
+  {
+    return factorial(n)/(factorial(k)*factorial(n-k));
+  }
+
+  unsigned int
+  factorial (const unsigned int n)
+  {
+    return (n == 1 || n == 0) ? 1 : factorial(n - 1) * n;
+  }
 
 
   int
