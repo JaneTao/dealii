@@ -1,0 +1,82 @@
+// ---------------------------------------------------------------------
+//
+// Copyright (C) 2000 - 2014 by the deal.II authors
+//
+// This file is part of the deal.II library.
+//
+// The deal.II library is free software; you can use it, redistribute
+// it, and/or modify it under the terms of the GNU Lesser General
+// Public License as published by the Free Software Foundation; either
+// version 2.1 of the License, or (at your option) any later version.
+// The full text of the license can be found in the file LICENSE at
+// the top level of the deal.II distribution.
+//
+// ---------------------------------------------------------------------
+
+
+#include <deal.II/base/quadrature_lib.h>
+#include <deal.II/fe/fe_s.h>
+
+#include <vector>
+#include <sstream>
+
+DEAL_II_NAMESPACE_OPEN
+
+
+
+template <int dim, int spacedim>
+FE_S<dim,spacedim>::FE_S (const unsigned int degree)
+  :
+  FE_S_Base<SerendipityPolynomials<dim>, dim, spacedim> (
+   SerendipityPolynomials<dim>(Polynomials::Lobatto::generate_complete_basis(degree)),
+   FiniteElementData<dim>(this->get_dpo_vector(degree),
+                          1, degree,
+                          FiniteElementData<dim>::H1),
+   std::vector<bool> (1, false))
+{
+  Assert (degree > 0,
+          ExcMessage ("This element can only be used for polynomial degrees "
+                      "greater than zero. If you want an element of polynomial "
+                      "degree zero, then it cannot be continuous and you "
+                      "will want to use FE_DGQ<dim>(0)."));
+  std::vector<Point<1> > support_points_1d(degree+1);
+  const QGaussLobatto<1> points_gl(this->degree+1);
+
+  for (unsigned int i=0; i<=degree; ++i)
+    support_points_1d[i][0] = points_gl.point(i)(0);
+
+  this->initialize(support_points_1d);
+}
+
+
+template <int dim, int spacedim>
+std::string
+FE_S<dim,spacedim>::get_name () const
+{
+  // note that the FETools::get_fe_from_name function depends on the
+  // particular format of the string this function returns, so they have to be
+  // kept in synch
+
+  std::ostringstream namebuf;
+    {
+        namebuf << "FE_S<"
+                << Utilities::dim_string(dim,spacedim)
+                << ">(QGaussLobatto(" << this->degree+1 << "))";
+    }
+  return namebuf.str();
+}
+
+
+
+template <int dim, int spacedim>
+FiniteElement<dim,spacedim> *
+FE_S<dim,spacedim>::clone() const
+{
+  return new FE_S<dim,spacedim>(*this);
+}
+
+
+// explicit instantiations
+#include "fe_s.inst"
+
+DEAL_II_NAMESPACE_CLOSE

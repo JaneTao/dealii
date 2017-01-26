@@ -39,6 +39,8 @@ SET(_src
   fe_poly_tensor_np.cc
   fe_q_base.cc
   fe_q.cc
+  fe_s_base.cc
+  fe_s.cc
   fe_q_dg0.cc
   fe_q_hierarchical.cc
   fe_q_iso_q1.cc
@@ -80,9 +82,11 @@ SET(_inst
   fe_poly_tensor.inst.in
   fe_poly_tensor_np.inst.in
   fe_q_base.inst.in
+  fe_s_base.inst.in
   fe_q_dg0.inst.in
   fe_q_hierarchical.inst.in
   fe_q.inst.in
+  fe_s.inst.in
   fe_q_iso_q1.inst.in
   fe_raviart_thomas.inst.in
   fe_raviart_thomas_nodal.inst.in

@@ -32,8 +32,7 @@ namespace internal
     template <int dim>
     inline
     void compute_tensor_index(const unsigned int,
-                              const unsigned int,
-                              const unsigned int,
+                              const FiniteElementData<dim> &fe_data,
                               unsigned int      ( &)[dim])
     {
       Assert(false, ExcNotImplemented());
@@ -41,8 +40,7 @@ namespace internal
 
     inline
     void compute_tensor_index(const unsigned int n,
-                              const unsigned int ,
-                              const unsigned int ,
+                              const FiniteElementData<1> &fe_data,
                               unsigned int       (&indices)[1])
     {
       indices[0] = n;
@@ -50,27 +48,97 @@ namespace internal
 
     inline
     void compute_tensor_index(const unsigned int n,
-                              const unsigned int n_pols_0,
-                              const unsigned int ,
+                              const FiniteElementData<2> &fe_data,
                               unsigned int       (&indices)[2])
     {
-      indices[0] = n % n_pols_0;
-      indices[1] = n / n_pols_0;
+      if( n < fe_data.first_line_index )
+      {
+        //vertex dofs
+        indices[0] = n % 2;
+        indices[1] = n / 2;
+        return;
+      }
+      else if (n < fe_data.first_quad_index)
+      {
+        //line dofs
+        if(n < fe_data.first_line_index + fe_data.dofs_per_line)
+        {
+          //left line
+          indices[0] = 0;
+          indices[1] = n - fe_data.first_line_index + 2;
+          return;
+        }
+        if(n >= fe_data.first_line_index + fe_data.dofs_per_line
+          && n < fe_data.first_line_index + 2*fe_data.dofs_per_line)
+        {
+          //right line
+          indices[0] = 1;
+          indices[1] = n - fe_data.first_line_index - fe_data.dofs_per_line + 2;
+          return;
+        }
+        if(n >= fe_data.first_line_index + 2*fe_data.dofs_per_line
+          && n < fe_data.first_line_index + 3*fe_data.dofs_per_line)
+        {
+          //bottom line
+          indices[1] = 0;
+          indices[0] = n - fe_data.first_line_index - 2*fe_data.dofs_per_line + 2;
+          return;
+        }
+        if(n >= fe_data.first_line_index + 3*fe_data.dofs_per_line
+          && n < fe_data.first_line_index + 4*fe_data.dofs_per_line)
+        {
+          //top line
+          indices[1] = 1;
+          indices[0] = n - fe_data.first_line_index - 3*fe_data.dofs_per_line + 2;
+          return;
+        }
+      }
+      else
+      {
+        //quad dofs
+        unsigned int n_quad = n - fe_data.first_quad_index;
+        unsigned int n_1d = fe_data.degree-2*2 + 1;
+
+        unsigned int k=0;
+        for (unsigned int iy=0; iy<n_1d; ++iy)
+          if (n_quad < k+n_1d-iy)
+            {
+              indices[0] = n_quad-k+2;
+              indices[1] = iy+2;
+              return;
+            }
+          else
+            k+=n_1d-iy;
+      }
     }
 
     inline
     void compute_tensor_index(const unsigned int n,
-                              const unsigned int n_pols_0,
-                              const unsigned int n_pols_1,
+                              const FiniteElementData<3> &fe_data,
                               unsigned int       (&indices)[3])
     {
-      indices[0] = n % n_pols_0;
-      indices[1] = (n/n_pols_0) % n_pols_1;
-      indices[2] = n / (n_pols_0*n_pols_1);
+      Assert(false, ExcNotImplemented());
     }
+
   }
 }
 
+
+template <int dim, typename POLY>
+std::vector<unsigned int>
+SerendipityPolynomials<dim,POLY>::get_dpo_vector(const unsigned int deg)
+{
+  AssertThrow(deg>0,ExcMessage("serendipity polynomials needs to be of degree > 0."));
+  std::vector<unsigned int> dpo(dim+1, 1U);
+  for (unsigned int i=1; i<dpo.size(); ++i)
+  {
+    if(deg/2 >= i)
+      dpo[i]=Utilities::n_choose_k(deg-i, i);
+    else
+      dpo[i]=0U;
+  }
+  return dpo;
+}
 
 
 template <int dim, typename POLY>
@@ -81,8 +149,7 @@ compute_index (const unsigned int i,
                unsigned int       (&indices)[(dim > 0 ? dim : 1)]) const
 {
   Assert (i < n_seren_pols, ExcInternalError());
-  internal::compute_tensor_index(index_map[i], polynomials.size(),
-                                 polynomials.size(), indices);
+  internal::compute_tensor_index(index_map[i], fe_data, indices);
 }
 
 
@@ -239,16 +306,16 @@ compute (const Point<dim>            &p,
          std::vector<Tensor<1,dim> > &grads,
          std::vector<Tensor<2,dim> > &grad_grads) const
 {
-  Assert (values.size()==n_tensor_pols    || values.size()==0,
-          ExcDimensionMismatch2(values.size(), n_tensor_pols, 0));
-  Assert (grads.size()==n_tensor_pols     || grads.size()==0,
-          ExcDimensionMismatch2(grads.size(), n_tensor_pols, 0));
-  Assert (grad_grads.size()==n_tensor_pols|| grad_grads.size()==0,
-          ExcDimensionMismatch2(grad_grads.size(), n_tensor_pols, 0));
+  Assert (values.size()==n_seren_pols    || values.size()==0,
+          ExcDimensionMismatch2(values.size(), n_seren_pols, 0));
+  Assert (grads.size()==n_seren_pols     || grads.size()==0,
+          ExcDimensionMismatch2(grads.size(), n_seren_pols, 0));
+  Assert (grad_grads.size()==n_seren_pols|| grad_grads.size()==0,
+          ExcDimensionMismatch2(grad_grads.size(), n_seren_pols, 0));
 
-  const bool update_values     = (values.size() == n_tensor_pols),
-             update_grads      = (grads.size()==n_tensor_pols),
-             update_grad_grads = (grad_grads.size()==n_tensor_pols);
+  const bool update_values     = (values.size() == n_seren_pols),
+             update_grads      = (grads.size()==n_seren_pols),
+             update_grad_grads = (grad_grads.size()==n_seren_pols);
 
   // check how many
   // values/derivatives we have to
@@ -282,7 +349,7 @@ compute (const Point<dim>            &p,
         };
   }
 
-  for (unsigned int i=0; i<n_tensor_pols; ++i)
+  for (unsigned int i=0; i<n_seren_pols; ++i)
     {
       // first get the
       // one-dimensional indices of

@@ -24,6 +24,8 @@
 #include <deal.II/base/polynomial.h>
 #include <deal.II/base/utilities.h>
 
+#include <deal.II/fe/fe_base.h>
+
 #include <vector>
 #include <cmath>
 
@@ -169,6 +171,10 @@ protected:
   // fix to avoid compiler warnings about zero length arrays
   void compute_index (const unsigned int i,
                       unsigned int       (&indices)[(dim>0?dim:1)]) const;
+
+  FiniteElementData<dim> fe_data;
+
+  static std::vector<unsigned int> get_dpo_vector(const unsigned int degree);
 };
 
 
@@ -187,7 +193,11 @@ SerendipityPolynomials<dim,POLY>::
 SerendipityPolynomials(const std::vector<Pol> &pols)
   :
   polynomials (pols.begin(), pols.end()),
+  fe_data(this->get_dpo_vector(pols.size()-1),
+          1, pols.size()-1, 
+          FiniteElementData<dim>::H1)
 {
+
   unsigned int degree = pols.size()-1;
   unsigned int d = (dimension > degree/2)? degree/2: dimension;
 
