@@ -379,8 +379,15 @@ namespace VectorTools
     /**
      * same as #H1_norm for <i>L<sup>infty</sup></i>.
      */
-    W1infty_norm
-
+    W1infty_norm,
+    /**
+     * l2 norm for enhanced finite element space - Zhen Tao
+     */
+    Enhanced_L2,
+    /**
+     * H1 seminorm for enhanced finite element space - Zhen Tao
+     */
+    Enhanced_H1_seminorm 
   };
   /**
    * @name Interpolation and projection

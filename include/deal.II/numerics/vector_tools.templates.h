@@ -6239,6 +6239,21 @@ namespace VectorTools
             diff=std::sqrt(diff);
           break;
 
+        case Enhanced_L2:
+          // Compute values in quadrature points and integrate
+          for (unsigned int q=0; q<n_q_points; ++q)
+            {
+              double sum = 0;
+              for (unsigned int k=0; k<n_components; ++k)
+                sum += data.psi_values[q](k) * data.weight_vectors[q](k);
+
+              sum = sum * sum;
+              diff += sum * fe_values.JxW(q);
+            }
+          diff=std::sqrt(diff);
+          break;        
+
+
         case Linfty_norm:
         case W1infty_norm:
           for (unsigned int q=0; q<n_q_points; ++q)
@@ -6251,6 +6266,7 @@ namespace VectorTools
         case W1p_seminorm:
         case Hdiv_seminorm:
         case W1infty_seminorm:
+        case Enhanced_H1_seminorm:
           break;
 
         default:
@@ -6285,6 +6301,22 @@ namespace VectorTools
             }
           diff = std::sqrt(diff);
           break;
+
+        case Enhanced_H1_seminorm:
+        for (unsigned int q=0; q<n_q_points; ++q)
+            {
+              double sum = 0;
+              Tensor<1,dim> temp;
+              for (unsigned int k=0; k<n_components; ++k)
+                for (unsigned int d=0; d<dim; ++d)
+                  temp[d] += (data.psi_grads[q][k][d]) *
+                         data.weight_vectors[q](k);
+              sum = temp * temp;
+              diff += sum * fe_values.JxW(q);
+            }
+          diff = std::sqrt(diff);
+          break;
+
 
         case Hdiv_seminorm:
           Assert (n_components >= dim,
@@ -6363,6 +6395,8 @@ namespace VectorTools
         case H1_seminorm:
         case H1_norm:
         case Hdiv_seminorm:
+        case Enhanced_L2:
+        case Enhanced_H1_seminorm:
           exponent = 2.;
           break;
 
@@ -6381,6 +6415,7 @@ namespace VectorTools
         case H1_seminorm:
         case W1p_seminorm:
         case W1infty_seminorm:
+        case Enhanced_H1_seminorm:
           update_flags |= UpdateFlags (update_gradients);
           if (spacedim == dim+1)
             update_flags |= UpdateFlags (update_normal_vectors);
