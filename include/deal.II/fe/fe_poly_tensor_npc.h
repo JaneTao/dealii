@@ -20,114 +20,21 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/fe/fe.h>
 #include <deal.II/base/derivative_form.h>
+#include <deal.II/grid/tria_iterator.h>
+#include <deal.II/dofs/dof_accessor.h>
 
 DEAL_II_NAMESPACE_OPEN
 
-/**
- * This class gives a unified framework for the implementation of
- * FiniteElement classes based on Tensor valued polynomial spaces like
- * PolynomialsBDM and PolynomialsRaviartThomas.
- *
- * Every class that implements following function can be used as template
- * parameter POLY.
- *
- * @code
- * void compute (const Point<dim>            &unit_point,
- *               std::vector<Tensor<1,dim> > &values,
- *               std::vector<Tensor<2,dim> > &grads,
- *               std::vector<Tensor<3,dim> > &grad_grads) const;
- * @endcode
- *
- * In many cases, the node functionals depend on the shape of the mesh cell,
- * since they evaluate normal or tangential components on the faces. In order
- * to allow for a set of transformations, the variable #mapping_type has been
- * introduced. It should also be set in the constructor of a derived class.
- *
- * This class is not a fully implemented FiniteElement class, but implements
- * some common features of vector valued elements based on vector valued
- * polynomial classes. What's missing here in particular is information on the
- * topological location of the node values.
- *
- * For more information on the template parameter <tt>spacedim</tt>, see the
- * documentation for the class Triangulation.
- *
- * <h3>Deriving classes</h3>
- *
- * Any derived class must decide on the polynomial space to use.  This
- * polynomial space should be implemented simply as a set of vector valued
- * polynomials like PolynomialsBDM and PolynomialsRaviartThomas.  In order to
- * facilitate this implementation, the basis of this space may be arbitrary.
- *
- * <h4>Determining the correct basis</h4>
- *
- * In most cases, the set of desired node values $N_i$ and the basis functions
- * $v_j$ will not fulfill the interpolation condition $N_i(v_j) =
- * \delta_{ij}$.
- *
- * The use of the member data #inverse_node_matrix allows to compute the basis
- * $v_j$ automatically, after the node values for each original basis function
- * of the polynomial space have been computed.
- *
- * Therefore, the constructor of a derived class should have a structure like
- * this (example for interpolation in support points):
- *
- * @code
- *  fill_support_points();
- *
- *  const unsigned int n_dofs = this->dofs_per_cell;
- *  FullMatrix<double> N(n_dofs, n_dofs);
- *
- *  for (unsigned int i=0;i<n_dofs;++i)
- *    {
- *      const Point<dim>& p = this->unit_support_point[i];
- *
- *      for (unsigned int j=0;j<n_dofs;++j)
- *        for (unsigned int d=0;d<dim;++d)
- *          N(i,j) += node_vector[i][d]
- *                  * this->shape_value_component(j, p, d);
- *    }
- *
- *  this->inverse_node_matrix.reinit(n_dofs, n_dofs);
- *  this->inverse_node_matrix.invert(N);
- * @endcode
- *
- * @note The matrix #inverse_node_matrix should have dimensions zero before
- * this piece of code is executed. Only then, shape_value_component() will
- * return the raw polynomial <i>j</i> as defined in the polynomial space POLY.
- *
- * <h4>Setting the transformation</h4>
- *
- * In most cases, vector valued basis functions must be transformed when
- * mapped from the reference cell to the actual grid cell. These
- * transformations can be selected from the set MappingType and stored in
- * #mapping_type. Therefore, each constructor should contain a line like:
- * @code
- * this->mapping_type = this->mapping_none;
- * @endcode
- *
- * @see PolynomialsBDM, PolynomialsRaviartThomas
- * @ingroup febase
- * @author Guido Kanschat
- * @date 2005
- */
 template <class POLY, int dim, int spacedim=dim>
 class FE_PolyTensor_NPC : public FiniteElement<dim,spacedim>
 {
 public:
-  /**
-   * Constructor.
-   *
-   * @arg @c degree: constructor argument for poly. May be different from @p
-   * fe_data.degree.
-   */
+
   FE_PolyTensor_NPC  (const unsigned int degree,
                       const FiniteElementData<dim> &fe_data,
                       const std::vector<bool> &restriction_is_additive_flags,
                       const std::vector<ComponentMask> &nonzero_components);
 
-  /**
-   * Since these elements are vector valued, an exception is thrown.
-   */
   virtual double shape_value (const unsigned int i,
                               const Point<dim> &p) const;
 
@@ -135,9 +42,6 @@ public:
                                         const Point<dim> &p,
                                         const unsigned int component) const;
 
-  /**
-   * Since these elements are vector valued, an exception is thrown.
-   */
   virtual Tensor<1,dim> shape_grad (const unsigned int  i,
                                     const Point<dim>   &p) const;
 
@@ -145,9 +49,6 @@ public:
                                               const Point<dim> &p,
                                               const unsigned int component) const;
 
-  /**
-   * Since these elements are vector valued, an exception is thrown.
-   */
   virtual Tensor<2,dim> shape_grad_grad (const unsigned int  i,
                                          const Point<dim> &p) const;
 
@@ -155,24 +56,12 @@ public:
                                                    const Point<dim> &p,
                                                    const unsigned int component) const;
 
-  /**
-   * Given <tt>flags</tt>, determines the values which must be computed only
-   * for the reference cell. Make sure, that #mapping_type is set by the
-   * derived class, such that this function can operate correctly.
-   */
   virtual UpdateFlags update_once (const UpdateFlags flags) const;
-  /**
-   * Given <tt>flags</tt>, determines the values which must be computed in
-   * each cell cell. Make sure, that #mapping_type is set by the derived
-   * class, such that this function can operate correctly.
-   */
+ 
   virtual UpdateFlags update_each (const UpdateFlags flags) const;
 
 protected:
-  /**
-   * The mapping type to be used to map shape functions from the reference
-   * cell to the mesh cell.
-   */
+  
   MappingType mapping_type;
 
   virtual
@@ -209,75 +98,131 @@ protected:
                           typename Mapping<dim,spacedim>::InternalDataBase      &fe_internal,
                           FEValuesData<dim,spacedim> &data) const ;
 
-  /**
-   * Fields of cell-independent data for FE_PolyTensor. Stores the values of
-   * the shape functions and their derivatives on the reference cell for later
-   * use.
-   *
-   * All tables are organized in a way, that the value for shape function
-   * <i>i</i> at quadrature point <i>k</i> is accessed by indices
-   * <i>(i,k)</i>.
-   */
   class InternalData : public FiniteElement<dim,spacedim>::InternalDataBase
   {
   public:
-    /**
-     * Array with shape function values in quadrature points. There is one row
-     * for each shape function, containing values for each quadrature point.
-     */
-    std::vector<std::vector<Tensor<1,dim> > > shape_values;
+    InternalData(const unsigned int n_shape_functions);
 
-    /**
-     * Array with shape function gradients in quadrature points. There is one
-     * row for each shape function, containing values for each quadrature
-     * point.
-     */
+    Tensor<1,dim> derivative (const unsigned int qpoint,
+                              const unsigned int shape_nr,
+                              const unsigned int proj_dir) const;
+
+    Tensor<1,dim> &derivative (const unsigned int qpoint,
+                               const unsigned int shape_nr,
+                               const unsigned int proj_dir);
+
+    Tensor<1,dim> corner_derivative (const unsigned int cn_nr,
+                                     const unsigned int shape_nr) const;
+
+    Tensor<1,dim> &corner_derivative (const unsigned int cn_nr,
+                                      const unsigned int shape_nr);
+
+
+    std::vector<Tensor<1,dim> > shape_derivatives_x;
+    std::vector<Tensor<1,dim> > shape_derivatives_y;
+    std::vector<Tensor<1,dim> > shape_derivatives_z;    
+    std::vector<Tensor<1,dim> > corner_derivatives;
+
+    std::vector<Point<spacedim> > mapping_support_points;
+
+    unsigned int n_shape_functions;
+
+    //===== for fe shape functions =====
+
+    std::vector<std::vector<Tensor<1,dim> > > shape_values;
     std::vector< std::vector< DerivativeForm<1, dim, spacedim> > > shape_grads;
   };
 
-  /**
-   * The polynomial space. Its type is given by the template parameter POLY.
-   */
+  virtual void compute_mapping_support_points(
+    const typename Triangulation<dim,spacedim>::cell_iterator &cell,
+    std::vector<Point<spacedim> > &a) const;
+
   POLY poly_space;
 
   unsigned int piola_boundary;
 
-  /**
-   * The inverse of the matrix <i>a<sub>ij</sub></i> of node values
-   * <i>N<sub>i</sub></i> applied to polynomial <i>p<sub>j</sub></i>. This
-   * matrix is used to convert polynomials in the "raw" basis provided in
-   * #poly_space to the basis dual to the node functionals on the reference
-   * cell.
-   *
-   * This object is not filled by FE_PolyTensor, but is a chance for a derived
-   * class to allow for reorganization of the basis functions. If it is left
-   * empty, the basis in #poly_space is used.
-   */
+  static const unsigned int n_shape_functions = GeometryInfo<dim>::vertices_per_cell;
+
   FullMatrix<double> inverse_node_matrix;
 
-  /**
-   * If a shape function is computed at a single point, we must compute all of
-   * them to apply #inverse_node_matrix. In order to avoid too much overhead,
-   * we cache the point and the function values for the next evaluation.
-   */
   mutable Point<dim> cached_point;
 
-  /**
-   * Cached shape function values after call to shape_value_component().
-   */
   mutable std::vector<Tensor<1,dim> > cached_values;
 
-  /**
-   * Cached shape function gradients after call to shape_grad_component().
-   */
   mutable std::vector<Tensor<2,dim> > cached_grads;
 
-  /**
-   * Cached second derivatives of shape functions after call to
-   * shape_grad_grad_component().
-   */
   mutable std::vector<Tensor<3,dim> > cached_grad_grads;
 };
+
+
+template<int dim, int spacedim>
+inline
+Tensor<1,dim>
+FE_PolyTensor_NPC<dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
+                                                           const unsigned int shape_nr,
+                                                           const unsigned int proj_dir) const
+{
+  Assert(qpoint*n_shape_functions + shape_nr < shape_derivatives_x.size(),
+         ExcIndexRange(qpoint*n_shape_functions + shape_nr, 0,
+                       shape_derivatives_x.size()));
+
+  if(proj_dir == 1)
+  {
+    return shape_derivatives_x [qpoint*n_shape_functions + shape_nr];
+  }else{
+    if(proj_dir == 2)
+      return shape_derivatives_y [qpoint*n_shape_functions + shape_nr];
+    else
+      return shape_derivatives_z [qpoint*n_shape_functions + shape_nr];
+  }
+}
+
+template<int dim, int spacedim>
+inline
+Tensor<1,dim> &
+FE_PolyTensor_NPC<dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
+                                                           const unsigned int shape_nr,
+                                                           const unsigned int proj_dir)
+{
+  Assert(qpoint*n_shape_functions + shape_nr < shape_derivatives_x.size(),
+         ExcIndexRange(qpoint*n_shape_functions + shape_nr, 0,
+                       shape_derivatives_x.size()));
+
+  if(proj_dir == 1)
+  {
+    return shape_derivatives_x [qpoint*n_shape_functions + shape_nr];
+  }else{
+    if(proj_dir == 2)
+      return shape_derivatives_y [qpoint*n_shape_functions + shape_nr];
+    else
+      return shape_derivatives_z [qpoint*n_shape_functions + shape_nr];   
+  }
+}
+
+
+template<int dim, int spacedim>
+inline
+Tensor<1,dim>
+FE_PolyTensor_NPC<dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr
+                                                                  const unsigned int shape_nr) const
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_derivatives.size()));
+  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<int dim, int spacedim>
+inline
+Tensor<1,dim> &
+FE_PolyTensor_NPC<dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr
+                                                                  const unsigned int shape_nr)
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_derivatives.size()));
+  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+}
 
 DEAL_II_NAMESPACE_CLOSE
 
