@@ -133,9 +133,16 @@ protected:
     std::vector< std::vector< DerivativeForm<1, dim, spacedim> > > shape_grads;
   };
 
+  void compute_shapes (const std::vector<Point<dim> > &unit_points,
+                       InternalData &data) const;
+
   virtual void compute_mapping_support_points(
     const typename Triangulation<dim,spacedim>::cell_iterator &cell,
     std::vector<Point<spacedim> > &a) const;
+
+
+  virtual void compute_shapes_virtual (const std::vector<Point<dim> > &unit_points,
+                                       InternalData &data) const;
 
   POLY poly_space;
 

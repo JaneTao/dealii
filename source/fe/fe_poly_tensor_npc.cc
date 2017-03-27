@@ -25,6 +25,16 @@
 
 DEAL_II_NAMESPACE_OPEN
 
+template <int dim, int spacedim>
+const unsigned int FE_PolyTensor_NPC<dim,spacedim>::n_shape_functions;
+
+template<int dim, int spacedim>
+FE_PolyTensor_NPC<dim,spacedim>::InternalData::InternalData (const unsigned int n_shape_functions)
+  :
+  n_shape_functions (n_shape_functions)
+{}
+
+
 namespace
 {
 //---------------------------------------------------------------------------
@@ -396,11 +406,174 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::get_data (
 
       }
 
-  // Assert(false, ExcMessage("get_data_done"));
+  // ========== compute shapes =====
+  data->shape_derivatives_x.resize(data->n_shape_functions * n_q_points);
+  data->shape_derivatives_y.resize(data->n_shape_functions * n_q_points);
+  data->shape_derivatives_z.resize(data->n_shape_functions * n_q_points);
+  data->corner_derivatives.resize(data->n_shape_functions * GeometryInfo<dim>::vertices_per_cell);
+
+  compute_shapes (quadrature.get_points(), data);
+
+  Assert(false, ExcMessage("get_data_done"));
   return data;
 }
 
 
+template<int dim, int spacedim>
+void
+FE_PolyTensor_NPC<dim,spacedim>::compute_shapes (const std::vector<Point<dim> > &unit_points,
+                                         InternalData &data) const
+{
+    FE_PolyTensor_NPC<dim,spacedim>::compute_shapes_virtual(unit_points, data);
+}
+
+namespace internal
+{
+  namespace FE_PolyTensor_NPC
+  {
+    template <int spacedim>
+    void
+    compute_shapes_virtual (const unsigned int            n_shape_functions,
+                            const std::vector<Point<1> > &unit_points,
+                            typename dealii::FE_PolyTensor_NPC<1,spacedim>::InternalData &data)
+    {
+      Assert(false, ExcNotImplemented());
+    }
+
+    template <int spacedim>
+    void
+    compute_shapes_virtual (const unsigned int            n_shape_functions,
+                            const std::vector<Point<2> > &unit_points,
+                            typename dealii::FE_PolyTensor_NPC<2,spacedim>::InternalData &data)
+    {
+      Assert(false, ExcNotImplemented());
+    }
+
+    template <int spacedim>
+    void
+    compute_shapes_virtual (const unsigned int            n_shape_functions,
+                            const std::vector<Point<3> > &unit_points,
+                            typename dealii::FE_PolyTensor_NPC<3,spacedim>::InternalData &data)
+    {
+      (void)n_shape_functions;
+      const unsigned int n_points=unit_points.size();
+      for (unsigned int k = 0 ; k < n_points ; ++k)
+        {
+          double x = unit_points[k](0);
+          double y = unit_points[k](1);
+          double z = unit_points[k](2);
+
+          if (data.shape_derivatives_x.size()!=0)
+            {
+              Assert(data.shape_derivatives_x.size()==n_shape_functions*n_points,
+                     ExcInternalError());
+              // replace x with 1.0
+              data.derivative(k,0,1)[0] = (y-1.)*(1.-z);
+              data.derivative(k,1,1)[0] = (1.-y)*(1.-z);
+              data.derivative(k,2,1)[0] = -y*(1.-z);
+              data.derivative(k,3,1)[0] = y*(1.-z);
+              data.derivative(k,4,1)[0] = (y-1.)*z;
+              data.derivative(k,5,1)[0] = (1.-y)*z;
+              data.derivative(k,6,1)[0] = -y*z;
+              data.derivative(k,7,1)[0] = y*z;
+              data.derivative(k,0,1)[1] = 0.0;
+              data.derivative(k,1,1)[1] = -(1.-z);
+              data.derivative(k,2,1)[1] = 0.0;
+              data.derivative(k,3,1)[1] = (1.-z);
+              data.derivative(k,4,1)[1] = 0.0;
+              data.derivative(k,5,1)[1] = -z;
+              data.derivative(k,6,1)[1] = 0.0;
+              data.derivative(k,7,1)[1] = z;
+              data.derivative(k,0,1)[2] = 0.0;
+              data.derivative(k,1,1)[2] = (y-1.);
+              data.derivative(k,2,1)[2] = 0.0;
+              data.derivative(k,3,1)[2] = -y;
+              data.derivative(k,4,1)[2] = 0.0;
+              data.derivative(k,5,1)[2] = (1.-y);
+              data.derivative(k,6,1)[2] = 0.0;
+              data.derivative(k,7,1)[2] = y;
+            }
+          if (data.shape_derivatives_y.size()!=0)
+            {
+              Assert(data.shape_derivatives_y.size()==n_shape_functions*n_points,
+                     ExcInternalError());
+              // replace y with 1.0
+              data.derivative(k,0,2)[0] = 0.0;
+              data.derivative(k,1,2)[0] = 0.0;
+              data.derivative(k,2,2)[0] = -(1.-z);
+              data.derivative(k,3,2)[0] = (1.-z);
+              data.derivative(k,4,2)[0] = 0.0;
+              data.derivative(k,5,2)[0] = 0.0;
+              data.derivative(k,6,2)[0] = -z;
+              data.derivative(k,7,2)[0] = z;
+              data.derivative(k,0,2)[1] = (x-1.)*(1.-z);
+              data.derivative(k,1,2)[1] = -x*(1.-z);
+              data.derivative(k,2,2)[1] = (1.-x)*(1.-z);
+              data.derivative(k,3,2)[1] = x*(1.-z);
+              data.derivative(k,4,2)[1] = (x-1.)*z;
+              data.derivative(k,5,2)[1] = -x*z;
+              data.derivative(k,6,2)[1] = (1.-x)*z;
+              data.derivative(k,7,2)[1] = x*z;
+              data.derivative(k,0,2)[2] = 0.0;
+              data.derivative(k,1,2)[2] = 0.0;
+              data.derivative(k,2,2)[2] = (x-1.);
+              data.derivative(k,3,2)[2] = -x;
+              data.derivative(k,4,2)[2] = 0.0;
+              data.derivative(k,5,2)[2] = 0.0;
+              data.derivative(k,6,2)[2] = (1.-x);
+              data.derivative(k,7,2)[2] = x;
+            }
+          if (data.shape_derivatives_z.size()!=0)
+            {
+              Assert(data.shape_derivatives_z.size()==n_shape_functions*n_points,
+                     ExcInternalError());
+              // replace z with 1.0
+              data.derivative(k,0,3)[0] = 0.0;
+              data.derivative(k,1,3)[0] = 0.0;
+              data.derivative(k,2,3)[0] = 0.0;
+              data.derivative(k,3,3)[0] = 0.0;
+              data.derivative(k,4,3)[0] = (y-1.);
+              data.derivative(k,5,3)[0] = (1.-y);
+              data.derivative(k,6,3)[0] = -y;
+              data.derivative(k,7,3)[0] = y;
+              data.derivative(k,0,3)[1] = 0.0;
+              data.derivative(k,1,3)[1] = 0.0;
+              data.derivative(k,2,3)[1] = 0.0;
+              data.derivative(k,3,3)[1] = 0.0;
+              data.derivative(k,4,3)[1] = (x-1.);
+              data.derivative(k,5,3)[1] = -x;
+              data.derivative(k,6,3)[1] = (1.-x);
+              data.derivative(k,7,3)[1] = x;
+              data.derivative(k,0,3)[2] = (x-1)*(1.-y);
+              data.derivative(k,1,3)[2] = x*(y-1.);
+              data.derivative(k,2,3)[2] = (x-1.)*y;
+              data.derivative(k,3,3)[2] = -x*y;
+              data.derivative(k,4,3)[2] = (1.-x)*(1.-y);
+              data.derivative(k,5,3)[2] = x*(1.-y);
+              data.derivative(k,6,3)[2] = (1.-x)*y;
+              data.derivative(k,7,3)[2] = x*y; 
+            }                        
+        } // for each quadrature point
+
+        for(unsigned int cr = 0 ; cr < 8 ; ++cr )
+        {
+          if(data.)
+        }
+    } // compute_shapes_virtual_3D
+  }
+}
+
+
+template<int dim, int spacedim>
+void
+FE_PolyTensor_NPC<dim, spacedim>::
+compute_shapes_virtual (const std::vector<Point<dim> > &unit_points,
+                        InternalData &data) const
+{
+  internal::FE_PolyTensor_NPC::
+  compute_shapes_virtual<spacedim> (n_shape_functions,
+                                    unit_points, data);
+}
 
 
 //---------------------------------------------------------------------------
