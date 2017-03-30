@@ -30,6 +30,7 @@ SET(_src
   fe_dgabf_scalar.cc
   fe_dg_vector.cc
   fe_dg_vector_np.cc
+  fe_dg_vector_npc.cc
   fe_face.cc
   fe_face_np.cc
   fe_nedelec.cc
@@ -37,6 +38,7 @@ SET(_src
   fe_poly.cc
   fe_poly_tensor.cc
   fe_poly_tensor_np.cc
+  fe_poly_tensor_npc.cc
   fe_q_base.cc
   fe_q.cc
   fe_s_base.cc
@@ -73,6 +75,7 @@ SET(_inst
   fe_dgabf_scalar.inst.in
   fe_dg_vector.inst.in
   fe_dg_vector_np.inst.in
+  fe_dg_vector_npc.inst.in
   fe_face.inst.in
   fe_face_np.inst.in
   fe.inst.in
@@ -81,6 +84,7 @@ SET(_inst
   fe_poly.inst.in
   fe_poly_tensor.inst.in
   fe_poly_tensor_np.inst.in
+  fe_poly_tensor_npc.inst.in
   fe_q_base.inst.in
   fe_s_base.inst.in
   fe_q_dg0.inst.in
