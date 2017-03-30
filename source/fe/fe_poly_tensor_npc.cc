@@ -557,7 +557,37 @@ namespace internal
 
         for(unsigned int cr = 0 ; cr < 8 ; ++cr )
         {
-          if(data.)
+          int x = cr % 2;
+          int y = ((cr - x)/2) % 2;
+          int z = (cr < 4) ? 0 : 1;
+
+          Assert(data.corner_derivatives.size() == n_shape_functions * 8,
+            ExcInternalError());
+
+          data.corner_derivative(cr,0)[0] = (y-1.)*(1.-z);
+          data.corner_derivative(cr,1)[0] = (1.-y)*(1.-z);
+          data.corner_derivative(cr,2)[0] = -y*(1.-z);
+          data.corner_derivative(cr,3)[0] = y*(1.-z);
+          data.corner_derivative(cr,4)[0] = (y-1.)*z;
+          data.corner_derivative(cr,5)[0] = (1.-y)*z;
+          data.corner_derivative(cr,6)[0] = -y*z;
+          data.corner_derivative(cr,7)[0] = y*z;
+          data.corner_derivative(cr,0)[1] = (x-1.)*(1.-z);
+          data.corner_derivative(cr,1)[1] = -x*(1.-z);
+          data.corner_derivative(cr,2)[1] = (1.-x)*(1.-z);
+          data.corner_derivative(cr,3)[1] = x*(1.-z);
+          data.corner_derivative(cr,4)[1] = (x-1.)*z;
+          data.corner_derivative(cr,5)[1] = -x*z;
+          data.corner_derivative(cr,6)[1] = (1.-x)*z;
+          data.corner_derivative(cr,7)[1] = x*z;
+          data.corner_derivative(cr,0)[2] = (x-1)*(1.-y);
+          data.corner_derivative(cr,1)[2] = x*(y-1.);
+          data.corner_derivative(cr,2)[2] = (x-1.)*y;
+          data.corner_derivative(cr,3)[2] = -x*y;
+          data.corner_derivative(cr,4)[2] = (1.-x)*(1.-y);
+          data.corner_derivative(cr,5)[2] = x*(1.-y);
+          data.corner_derivative(cr,6)[2] = (1.-x)*y;
+          data.corner_derivative(cr,7)[2] = x*y;
         }
     } // compute_shapes_virtual_3D
   }
@@ -573,6 +603,19 @@ compute_shapes_virtual (const std::vector<Point<dim> > &unit_points,
   internal::FE_PolyTensor_NPC::
   compute_shapes_virtual<spacedim> (n_shape_functions,
                                     unit_points, data);
+}
+
+
+template<int dim, int spacedim>
+void
+FE_PolyTensor_NPC<dim,spacedim>::compute_mapping_support_points(
+  const typename Triangulation<dim,spacedim>::cell_iterator &cell,
+  std::vector<Point<spacedim> > &a) const
+{
+  a.resize(GeometryInfo<dim>::vertices_per_cell);
+
+  for (unsigned int i=0; i<GeometryInfo<dim>::vertices_per_cell; ++i)
+    a[i] = cell->vertex(i);
 }
 
 
@@ -682,6 +725,175 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
       }
   // ===================== piola-mapping degree of freedoms =====================
 
+  unsigned int degree = poly_space.degree();
+
+  compute_mapping_support_points(cell, fe_data.mapping_support_points);
+  const Tensor<1,spacedim> *supp_pts = &fe_data.mapping_support_points[0];
+
+  // calculate coeffs for K2, K4 and K6
+  Tensor<1, dim> g1;
+  Tensor<1, dim> g2;
+  Tensor<1, dim> g3;
+
+  // K2 = A2 + B2 * y^hat + C2 * z^hat + D2 * y^hat * z^hat
+  // A2 = K2(0,0)
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(1,k)[1];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(1,k)[2];
+    }
+  cross_product(g1, g2, g3);
+  double A2 = g1.norm();
+
+  // B2 = K2(1,0) - A2
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(3,k)[1];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(3,k)[2];
+    }
+  cross_product(g1,g2,g3);
+  double B2 = g1.norm() - A2;
+
+  // C2 = K2(0,1) - A2
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(5,k)[1];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(5,k)[2];
+    }
+  cross_product(g1,g2,g3);
+  double C2 = g1.norm() - A2;
+
+  // D2 = K2(1,1) - A2 - B2 - C2
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[1];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[2];
+    }
+  cross_product(g1,g2,g3);
+  double D2 = g1.norm() - A2 - B2 - C2; 
+  double K2 ＝ A2 ＋ 0.5*B2 + 0.5*C2 + 0.25*D2;
+
+  // K4 = A4 + B4 * x^hat + C4 * z^hat + D4 * x^hat * z^hat
+  // A4 = K4(0,0)
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(2,k)[0];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(2,k)[2];
+    }
+  cross_product(g2,g1,g3);
+  double A4 = g2.norm();
+
+  // B4 = K4(1,0) - A4
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(3,k)[0];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(3,k)[2];
+    }
+  cross_product(g2,g1,g3);
+  double B4 = g2.norm() - A4; 
+
+  // C4 = K4(0,1) - A4  
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(6,k)[0];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(6,k)[2];
+    }
+  cross_product(g2,g1,g3);
+  double C4 = g2.norm() - A4; 
+
+  // D4 = K4(1,1) - B - C - A
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[0];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[2];
+    }
+  cross_product(g2,g1,g3);
+  double D4 = g2.norm() - B4 - C4 - A4;
+  double K4 = A4 + 0.5*(B4 + C4) + 0.25*D4;
+
+  // K6 = A6 + B6 * x^hat + C6 * y^hat + D6 * x^hat * y^hat
+  // A6 = K6(0,0)
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(4,k)[0];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(4,k)[1];
+    }
+  cross_product(g3,g1,g2);
+  double A6 = g3.norm();  
+
+  // B6 ＝ K6（1,0) - A6
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(5,k)[0];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(5,k)[1];
+    }
+  cross_product(g3,g1,g2);
+  double B6 = g3.norm() - A6;    
+
+  // C6 = K6(0,1) - A6
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(6,k)[0];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(6,k)[1];
+    }
+  cross_product(g3,g1,g2);
+  double C6 = g3.norm() - A6; 
+
+  // D6 = K6(1,1) - A6 - B6 - C6
+  g1.clear();
+  g2.clear();
+  g3.clear();
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[0];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[1];
+    }
+  cross_product(g3,g1,g2);
+  double D6 = g3.norm() - A6 - B6 - C6;   
+  double K6 = A6 + 0.5*(B6+C6) + 0.25*D6; 
+
   for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
     {
       const unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
@@ -696,12 +908,94 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
             case mapping_piola:
             {
               std::vector<Tensor<1,dim> > shape_values (n_q_points);
-              mapping.transform(fe_data.shape_values[i], shape_values,
-                                mapping_data, mapping_piola);
+              if(degree == 0) // ATFull_0
+              {
+                std::vector<Tensor<1,dim> > corrected_shape_values (n_q_points);
+
+                for(unsigned int k=0; k<n_q_points; ++k)
+                {
+                  const double x = quadrature.get_points()[k](0);
+                  const double y = quadrature.get_points()[k](1);
+                  const double z = quadrature.get_points()[k](2);
+
+                  Tensor<1,dim> u1;
+                  Tensor<1,dim> u2;
+                  const unsigned int dd1 = (i - piola_boundary) % 3;
+                  const unsigned int dd2 = (i - piola_boundary+1) % 3;
+
+                  u1[dd1] = fe_data.shape_values[i][k](dd1);
+                  u2[dd2] = fe_data.shape_values[i][k](dd2);
+
+                  double a,b,c;
+
+                  if(dd1 == 0)
+                  {
+                    a = 0.5*(B2+0.25*D2);
+                    b = 0.5*(C2+0.25*D2);
+                    c = 0.25*D2;
+                    u1[dd1] *= A2 + B2*y + C2*z + D2*y*z;
+                    u1[1] = y*(1.0-y)*(a + c*z);
+                    u1[2] = z*(1.0-z)*(b + c*y);
+
+                    a = -0.5*(B4+0.25*D4);
+                    b = -0.5*(C4+0.25*D4);
+                    c = -0.25*D4;
+                    u2[dd2] *= A4 + B4*x + C4*z + D4*x*z;
+                    u2[0] = x*(1.0-x)*(a + c*z);
+                    u2[2] = z*(1.0-z)*(b + c*x);
+
+                    corrected_shape_values[k] = u1/K2 + u2/K4;
+
+                  }else if(dd1 == 1){
+                    a = 0.5*(B4+0.25*D4);
+                    b = 0.5*(C4+0.25*D4);
+                    c = 0.25*D4;
+                    u1[dd1] *= A4 + B4*x + C4*z + D4*x*z;
+                    u1[0] = x*(1.0-x)*(a + c*z);
+                    u1[2] = z*(1.0-z)*(b + c*x);
+
+                    a = -0.5*(B6 + 0.25*D6);
+                    b = -0.5*(C6 + 0.25*D6);
+                    c = -0.25*D6;
+                    u2[dd2] *= A6 + B6*x + C6*y + D6*x*y;
+                    u2[0] = x*(1.0-x)*(a + c*y);
+                    u2[1] = y*(1.0-y)*(b + c*x);
+
+                    corrected_shape_values[k] = u1/K4 + u2/K6;
+                  }else{
+                    a = 0.5*(B6+0.25*D6);
+                    b = 0.5*(C6+0.25*D6);
+                    c = 0.25*D6;
+                    u1[dd1] *= A6 + B6*x + C6*y + D6*x*y;
+                    u1[0] = x*(1.0-x)*(a + c*y);
+                    u1[1] = y*(1.0-y)*(b + c*x);
+
+                    a = -0.5*(B2 + 0.25*D2);
+                    b = -0.5*(C2 + 0.25*D2);
+                    c = -0.25*D2;
+                    u2[dd2] *= A2 + B2*y + C2*z + D2*y*z;
+                    u2[1] = y*(1.0-y)*(a + c*z);
+                    u2[2] = z*(1.0-z)*(b + c*y);
+
+                    corrected_shape_values[k] = u1/K6 + u2/K2;
+                  }
+                }
+
+                // instead of fe_data.shape_values[i], sent corrected 
+                // shape values to piola mapping
+                mapping.transform(corrected_shape_values, shape_values,
+                                  mapping_data, mapping_piola);
+              }
+              else // if(degree > 1)
+              {
+                mapping.transform(fe_data.shape_values[i], shape_values,
+                                  mapping_data, mapping_piola);
+              }
+
               for (unsigned int k=0; k<n_q_points; ++k)
-                for (unsigned int d=0; d<dim; ++d)
-                  data.shape_values(first+d,k)
-                    = sign_change[i] * shape_values[k][d];
+                  for (unsigned int d=0; d<dim; ++d)
+                    data.shape_values(first+d,k)
+                      = sign_change[i] * shape_values[k][d];
               break;
             }
 
@@ -851,8 +1145,10 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_face_values (
             case mapping_piola:
             {
               std::vector<Tensor<1,dim> > shape_values (n_q_points);
+
               mapping.transform(make_slice(fe_data.shape_values[i], offset, n_q_points),
                                 shape_values, mapping_data, mapping_piola);
+
               for (unsigned int k=0; k<n_q_points; ++k)
                 for (unsigned int d=0; d<dim; ++d)
                   data.shape_values(first+d,k)
