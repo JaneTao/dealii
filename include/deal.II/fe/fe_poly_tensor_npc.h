@@ -59,8 +59,6 @@ public:
   virtual UpdateFlags update_once (const UpdateFlags flags) const;
  
   virtual UpdateFlags update_each (const UpdateFlags flags) const;
-
-protected:
   
   MappingType mapping_type;
 
@@ -103,6 +101,15 @@ protected:
   public:
     InternalData(const unsigned int n_shape_functions);
 
+    std::vector<Tensor<1,dim> > shape_derivatives_x;
+    std::vector<Tensor<1,dim> > shape_derivatives_y;
+    std::vector<Tensor<1,dim> > shape_derivatives_z;    
+    std::vector<Tensor<1,dim> > corner_derivatives;
+
+    std::vector<Point<spacedim> > mapping_support_points;
+
+    unsigned int n_shape_functions;
+
     Tensor<1,dim> derivative (const unsigned int qpoint,
                               const unsigned int shape_nr,
                               const unsigned int proj_dir) const;
@@ -112,20 +119,10 @@ protected:
                                const unsigned int proj_dir);
 
     Tensor<1,dim> corner_derivative (const unsigned int cn_nr,
-                                     const unsigned int shape_nr) const;
+      const unsigned int shape_nr) const;
 
     Tensor<1,dim> &corner_derivative (const unsigned int cn_nr,
-                                      const unsigned int shape_nr);
-
-
-    std::vector<Tensor<1,dim> > shape_derivatives_x;
-    std::vector<Tensor<1,dim> > shape_derivatives_y;
-    std::vector<Tensor<1,dim> > shape_derivatives_z;    
-    std::vector<Tensor<1,dim> > corner_derivatives;
-
-    std::vector<Point<spacedim> > mapping_support_points;
-
-    unsigned int n_shape_functions;
+      const unsigned int shape_nr);
 
     //===== for fe shape functions =====
 
@@ -162,10 +159,10 @@ protected:
 };
 
 
-template<int dim, int spacedim>
+template<class POLY, int dim, int spacedim>
 inline
 Tensor<1,dim>
-FE_PolyTensor_NPC<dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
+FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
                                                            const unsigned int shape_nr,
                                                            const unsigned int proj_dir) const
 {
@@ -184,10 +181,10 @@ FE_PolyTensor_NPC<dim,spacedim>::InternalData::derivative (const unsigned int qp
   }
 }
 
-template<int dim, int spacedim>
+template<class POLY, int dim, int spacedim>
 inline
 Tensor<1,dim> &
-FE_PolyTensor_NPC<dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
+FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
                                                            const unsigned int shape_nr,
                                                            const unsigned int proj_dir)
 {
@@ -207,11 +204,11 @@ FE_PolyTensor_NPC<dim,spacedim>::InternalData::derivative (const unsigned int qp
 }
 
 
-template<int dim, int spacedim>
+template<class POLY, int dim, int spacedim>
 inline
 Tensor<1,dim>
-FE_PolyTensor_NPC<dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr
-                                                                  const unsigned int shape_nr) const
+FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr,
+  const unsigned int shape_nr) const
 {
   Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
          ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
@@ -219,11 +216,11 @@ FE_PolyTensor_NPC<dim,spacedim>::InternalData::corner_derivative (const unsigned
   return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
 }
 
-template<int dim, int spacedim>
+template<class POLY, int dim, int spacedim>
 inline
 Tensor<1,dim> &
-FE_PolyTensor_NPC<dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr
-                                                                  const unsigned int shape_nr)
+FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr,
+  const unsigned int shape_nr)
 {
   Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
          ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,

@@ -25,11 +25,11 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-template <int dim, int spacedim>
-const unsigned int FE_PolyTensor_NPC<dim,spacedim>::n_shape_functions;
+template<class POLY, int dim, int spacedim>
+const unsigned int FE_PolyTensor_NPC<POLY,dim,spacedim>::n_shape_functions;
 
-template<int dim, int spacedim>
-FE_PolyTensor_NPC<dim,spacedim>::InternalData::InternalData (const unsigned int n_shape_functions)
+template<class POLY, int dim, int spacedim>
+FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::InternalData (const unsigned int n_shape_functions)
   :
   n_shape_functions (n_shape_functions)
 {}
@@ -315,7 +315,7 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::get_data (
 {
   // generate a new data object and
   // initialize some fields
-  InternalData *data = new InternalData;
+  InternalData *data = new InternalData(n_shape_functions);
 
   // check what needs to be
   // initialized only once and what
@@ -412,48 +412,48 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::get_data (
   data->shape_derivatives_z.resize(data->n_shape_functions * n_q_points);
   data->corner_derivatives.resize(data->n_shape_functions * GeometryInfo<dim>::vertices_per_cell);
 
-  compute_shapes (quadrature.get_points(), data);
+  compute_shapes (quadrature.get_points(), *data);
 
-  Assert(false, ExcMessage("get_data_done"));
+  // Assert(false, ExcMessage("get_data_done"));
   return data;
 }
 
 
-template<int dim, int spacedim>
+template <class POLY, int dim, int spacedim>
 void
-FE_PolyTensor_NPC<dim,spacedim>::compute_shapes (const std::vector<Point<dim> > &unit_points,
+FE_PolyTensor_NPC<POLY,dim,spacedim>::compute_shapes (const std::vector<Point<dim> > &unit_points,
                                          InternalData &data) const
 {
-    FE_PolyTensor_NPC<dim,spacedim>::compute_shapes_virtual(unit_points, data);
+    FE_PolyTensor_NPC<POLY,dim,spacedim>::compute_shapes_virtual(unit_points, data);
 }
 
 namespace internal
 {
   namespace FE_PolyTensor_NPC
   {
-    template <int spacedim>
+    template <class POLY, int spacedim>
     void
     compute_shapes_virtual (const unsigned int            n_shape_functions,
                             const std::vector<Point<1> > &unit_points,
-                            typename dealii::FE_PolyTensor_NPC<1,spacedim>::InternalData &data)
+                            typename dealii::FE_PolyTensor_NPC<POLY,1,spacedim>::InternalData &data)
     {
       Assert(false, ExcNotImplemented());
     }
 
-    template <int spacedim>
+    template <class POLY, int spacedim>
     void
     compute_shapes_virtual (const unsigned int            n_shape_functions,
                             const std::vector<Point<2> > &unit_points,
-                            typename dealii::FE_PolyTensor_NPC<2,spacedim>::InternalData &data)
+                            typename dealii::FE_PolyTensor_NPC<POLY,2,spacedim>::InternalData &data)
     {
       Assert(false, ExcNotImplemented());
     }
 
-    template <int spacedim>
+    template <class POLY, int spacedim>
     void
     compute_shapes_virtual (const unsigned int            n_shape_functions,
                             const std::vector<Point<3> > &unit_points,
-                            typename dealii::FE_PolyTensor_NPC<3,spacedim>::InternalData &data)
+                            typename dealii::FE_PolyTensor_NPC<POLY,3,spacedim>::InternalData &data)
     {
       (void)n_shape_functions;
       const unsigned int n_points=unit_points.size();
@@ -594,21 +594,20 @@ namespace internal
 }
 
 
-template<int dim, int spacedim>
+template <class POLY, int dim, int spacedim>
 void
-FE_PolyTensor_NPC<dim, spacedim>::
+FE_PolyTensor_NPC<POLY,dim,spacedim>::
 compute_shapes_virtual (const std::vector<Point<dim> > &unit_points,
                         InternalData &data) const
 {
   internal::FE_PolyTensor_NPC::
-  compute_shapes_virtual<spacedim> (n_shape_functions,
-                                    unit_points, data);
+  compute_shapes_virtual<POLY,spacedim> (n_shape_functions, unit_points, data);
 }
 
 
-template<int dim, int spacedim>
+template <class POLY, int dim, int spacedim>
 void
-FE_PolyTensor_NPC<dim,spacedim>::compute_mapping_support_points(
+FE_PolyTensor_NPC<POLY,dim,spacedim>::compute_mapping_support_points(
   const typename Triangulation<dim,spacedim>::cell_iterator &cell,
   std::vector<Point<spacedim> > &a) const
 {
@@ -725,7 +724,12 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
       }
   // ===================== piola-mapping degree of freedoms =====================
 
-  unsigned int degree = poly_space.degree();
+  unsigned int fe_degree = poly_space.degree()-1;
+
+  // std::cout<<"degree = "<<fe_degree <<std::endl;
+
+  // Assert(fe_degree == 0,
+  //        ExcMessage("Only test on ATFull_0"));
 
   compute_mapping_support_points(cell, fe_data.mapping_support_points);
   const Tensor<1,spacedim> *supp_pts = &fe_data.mapping_support_points[0];
@@ -737,11 +741,12 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
 
   // K2 = A2 + B2 * y^hat + C2 * z^hat + D2 * y^hat * z^hat
   // A2 = K2(0,0)
+
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(1,k)[1];
-      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(1,k)[2];
+      g2[d] += supp_pts[k][d]*fe_data.corner_derivative(1,k)[1];
+      g3[d] += supp_pts[k][d]*fe_data.corner_derivative(1,k)[2];
     }
   cross_product(g1, g2, g3);
   double A2 = g1.norm();
@@ -753,8 +758,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(3,k)[1];
-      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(3,k)[2];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivative(3,k)[1];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivative(3,k)[2];
     }
   cross_product(g1,g2,g3);
   double B2 = g1.norm() - A2;
@@ -766,8 +771,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(5,k)[1];
-      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(5,k)[2];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivative(5,k)[1];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivative(5,k)[2];
     }
   cross_product(g1,g2,g3);
   double C2 = g1.norm() - A2;
@@ -779,12 +784,12 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[1];
-      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[2];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivative(7,k)[1];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivative(7,k)[2];
     }
   cross_product(g1,g2,g3);
   double D2 = g1.norm() - A2 - B2 - C2; 
-  double K2 ＝ A2 ＋ 0.5*B2 + 0.5*C2 + 0.25*D2;
+  double K2 = A2 + 0.5*B2 + 0.5*C2 + 0.25*D2;
 
   // K4 = A4 + B4 * x^hat + C4 * z^hat + D4 * x^hat * z^hat
   // A4 = K4(0,0)
@@ -794,8 +799,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(2,k)[0];
-      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(2,k)[2];
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivative(2,k)[0];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivative(2,k)[2];
     }
   cross_product(g2,g1,g3);
   double A4 = g2.norm();
@@ -807,8 +812,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(3,k)[0];
-      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(3,k)[2];
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivative(3,k)[0];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivative(3,k)[2];
     }
   cross_product(g2,g1,g3);
   double B4 = g2.norm() - A4; 
@@ -820,8 +825,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(6,k)[0];
-      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(6,k)[2];
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivative(6,k)[0];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivative(6,k)[2];
     }
   cross_product(g2,g1,g3);
   double C4 = g2.norm() - A4; 
@@ -833,8 +838,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[0];
-      g3[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[2];
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivative(7,k)[0];
+      g3[d] += supp_pts[k][d] * fe_data.corner_derivative(7,k)[2];
     }
   cross_product(g2,g1,g3);
   double D4 = g2.norm() - B4 - C4 - A4;
@@ -848,8 +853,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(4,k)[0];
-      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(4,k)[1];
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivative(4,k)[0];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivative(4,k)[1];
     }
   cross_product(g3,g1,g2);
   double A6 = g3.norm();  
@@ -861,8 +866,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(5,k)[0];
-      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(5,k)[1];
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivative(5,k)[0];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivative(5,k)[1];
     }
   cross_product(g3,g1,g2);
   double B6 = g3.norm() - A6;    
@@ -874,8 +879,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(6,k)[0];
-      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(6,k)[1];
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivative(6,k)[0];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivative(6,k)[1];
     }
   cross_product(g3,g1,g2);
   double C6 = g3.norm() - A6; 
@@ -887,12 +892,14 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   for(unsigned int k = 0; k<n_shape_functions; ++k)
     for(unsigned int d = 0; d<dim; ++d)
     {
-      g1[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[0];
-      g2[d] += supp_pts[k][d] * fe_data.corner_derivatives(7,k)[1];
+      g1[d] += supp_pts[k][d] * fe_data.corner_derivative(7,k)[0];
+      g2[d] += supp_pts[k][d] * fe_data.corner_derivative(7,k)[1];
     }
   cross_product(g3,g1,g2);
   double D6 = g3.norm() - A6 - B6 - C6;   
   double K6 = A6 + 0.5*(B6+C6) + 0.25*D6; 
+
+  // std::cout<<"cell "<<cell->index()<<"   K2="<<K2<<"   K4="<<K4<<"   K6="<<K6 <<std::endl;
 
   for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
     {
@@ -908,7 +915,7 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
             case mapping_piola:
             {
               std::vector<Tensor<1,dim> > shape_values (n_q_points);
-              if(degree == 0) // ATFull_0
+              if(fe_degree == 0) // ATFull_0
               {
                 std::vector<Tensor<1,dim> > corrected_shape_values (n_q_points);
 
@@ -923,8 +930,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
                   const unsigned int dd1 = (i - piola_boundary) % 3;
                   const unsigned int dd2 = (i - piola_boundary+1) % 3;
 
-                  u1[dd1] = fe_data.shape_values[i][k](dd1);
-                  u2[dd2] = fe_data.shape_values[i][k](dd2);
+                  u1[dd1]=fe_data.shape_values[i][k][dd1];
+                  u2[dd2]=fe_data.shape_values[i][k][dd2];
 
                   double a,b,c;
 
@@ -980,7 +987,6 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
                     corrected_shape_values[k] = u1/K6 + u2/K2;
                   }
                 }
-
                 // instead of fe_data.shape_values[i], sent corrected 
                 // shape values to piola mapping
                 mapping.transform(corrected_shape_values, shape_values,

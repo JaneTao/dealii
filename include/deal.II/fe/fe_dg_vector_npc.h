@@ -122,6 +122,12 @@ private:
   void initialize_restriction ();
 
   // internalData?
+  // class InternalData : public FiniteElement<dim,spacedim>::InternalDataBase
+  // {
+  //   std::vector<std::vector<Tensor<1,dim> > > shape_values;
+  //   std::vector< std::vector< DerivativeForm<1, dim, spacedim> > > shape_grads;
+  // };
+
 
   Table<3, double> interior_weights;
 };
@@ -133,7 +139,7 @@ class FE_ATRed : public FE_DGVector_NPC<PolynomialsBDM<dim>, dim, spacedim>
 {
 public:
 
-  FE_ACRed (const unsigned int p);
+  FE_ATRed (const unsigned int p);
 
   virtual std::string get_name () const;
 };
@@ -143,7 +149,7 @@ class FE_ATFull : public FE_DGVector_NPC<PolynomialsACFull<dim>, dim, spacedim>
 {
 public:
 
-  FE_ACFull (const unsigned int p);
+  FE_ATFull (const unsigned int p);
 
   virtual std::string get_name () const;
 };
