@@ -747,7 +747,7 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
 
   unsigned int fe_degree = poly_space.degree()-1;
 
-  // std::cout<<"degree = "<<fe_degree <<std::endl;
+  // std::cout<<"fe_degree = "<<fe_degree <<std::endl;
 
   // Assert(fe_degree == 0,
   //        ExcMessage("Only test on ATFull_0"));
@@ -946,6 +946,8 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
   A_inv(3,7) = -1./6.; A_inv(4,7) = -1./6.;
   A_inv(5,7) = -1./18.; A_inv(6,7) = -1./18.; A_inv(7,7) = -1./6.; // y^2*z^2
 
+  // A_inv.print_formatted(std::cout);
+
   // calculate coefficients for real x,y,z
   // on face 2,4,6
   // coef_a[i][j] means variable i on face (j+1)*2
@@ -985,13 +987,21 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
       coef_d[d][2] += supp_pts[k][d] * fe_data.corner_value(7,k);
     }  
 
+  // std::cout<<"cell: "<<cell->index()<<std::endl;
+
   for(unsigned int k = 0; k < 3; ++k)  
     for(unsigned int d = 0; d<dim; ++d)
     {
       coef_b[d][k] = coef_b[d][k] - coef_a[d][k]; 
       coef_c[d][k] = coef_c[d][k] - coef_a[d][k];
       coef_d[d][k] = coef_d[d][k] - coef_a[d][k] - coef_b[d][k] - coef_c[d][k];
+
+      // std::cout<<"   x"<<d<<" in face "<<(k+1)*2
+      // <<" "<<coef_a[d][k]<<" "<<coef_b[d][k]<<" "<<coef_c[d][k]<<" "<<coef_d[d][k]
+      // <<std::endl;
     }  
+
+
 
   for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
     {
@@ -1087,7 +1097,7 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
                 mapping.transform(corrected_shape_values, shape_values,
                                   mapping_data, mapping_piola);
               }
-              if(fe_degree == 1) //ATFull_1 and ATRed_1
+              else if(fe_degree == 1) //ATFull_1 and ATRed_1
               {
                 std::vector<Tensor<1,dim> > corrected_shape_values (n_q_points);
 
@@ -1096,51 +1106,147 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
                   const double x = quadrature.get_points()[k](0);
                   const double y = quadrature.get_points()[k](1);
                   const double z = quadrature.get_points()[k](2);
-                  Tensor<1,dim> pt;
-                  pt[0] = x; pt[1] = y; pt[2] = z;
 
                   Tensor<1,dim> u1;
                   Tensor<1,dim> u2;
 
                   const int supp_idx = i + piola_boundary - this->dofs_per_cell;
 
+                  const int dd1 = supp_idx % 3;
+                  const int dd2 = (supp_idx+1) % 3;
+                  int dd3;
                   if(supp_idx < 3) // first three supplements
-                  {
-                    int dd1 = supp_idx % 3;
-                    int dd2 = (supp_idx+1) % 3;
-                    int dd3 = (supp_idx+2) % 3; //correction variable position
-
-                    double var1, var2;
-                    int bubb1_pos, bubb2_pos;
-                    if(dd1==0){
-                      var1 = y; var2 = z;
-                      bubb1_pos = 1; bubb2_pos = 2;
-                    }else if(dd1==1){
-                      var1 = x; var2 = z;
-                      bubb1_pos = 0; bubb2_pos = 2;
-                    }else{
-                      var1 = x; var2 = y;
-                      bubb1_pos = 0; bubb2_pos = 1;
-                    }
-
-                    Vector<double> rhs(8);
-                    rhs(0) = face_A[dd1]*coef_b[dd3][dd1]
-                            + face_B[dd1]*coef_a[dd3][dd1]; // y^hat
-                    rhs(1) = face_A[dd1]*coef_c[dd3][dd1]
-                            + face_C[dd1]*coef_a[dd3][dd1]; // z^hat
-                    rhs(2) = 
-
-
+                  {                  
+                    dd3 = (supp_idx+2) % 3; //correction variable position
+                  }else{
+                    dd3 = dd2;
                   }
-                  else // last three supplements
-                  {
 
+                  // ===================================================
+                  double var1, var2;
+                  int bubb1_pos, bubb2_pos;
+                  if(dd1==0){
+                    var1 = y; var2 = z;
+                    bubb1_pos = 1; bubb2_pos = 2;
+                  }else if(dd1==1){
+                    var1 = x; var2 = z;
+                    bubb1_pos = 0; bubb2_pos = 2;
+                  }else{
+                    var1 = x; var2 = y;
+                    bubb1_pos = 0; bubb2_pos = 1;
                   }
+
+                  Vector<double> rhs(8), soln(8);
+                  rhs(0) = face_A[dd1]*coef_b[dd3][dd1]
+                          +face_B[dd1]*coef_a[dd3][dd1]; // y^hat
+                  rhs(1) = face_A[dd1]*coef_c[dd3][dd1]
+                          +face_C[dd1]*coef_a[dd3][dd1]; // z^hat
+                  rhs(2) = face_A[dd1]*coef_d[dd3][dd1]
+                          +face_D[dd1]*coef_a[dd3][dd1]
+                          +face_B[dd1]*coef_c[dd3][dd1]
+                          +face_C[dd1]*coef_b[dd3][dd1]; // y^hat * z^hat
+                  rhs(3) = face_B[dd1]*coef_b[dd3][dd1]; // y^hat^2
+                  rhs(4) = face_C[dd1]*coef_c[dd3][dd1]; // z^hat^2
+                  rhs(5) = face_B[dd1]*coef_d[dd3][dd1]
+                          +face_D[dd1]*coef_b[dd3][dd1]; // y^hat^2 * z^hat
+                  rhs(6) = face_C[dd1]*coef_d[dd3][dd1]
+                          +face_D[dd1]*coef_c[dd3][dd1]; // y^hat * z^hat^2
+                  rhs(7) = face_D[dd1]*coef_d[dd3][dd1]; // y^hat^2 * z^hat^2
+                  rhs *= -1.;
+                  A_inv.vmult(soln, rhs);
+
+                  // p = a0 + c0*z + a2*z^2 + a3*y + c1*y*z^2
+                  double p1 = soln(0) + soln(2)*var2
+                              + soln(3) * var2 * var2
+                              + soln(5) * var1
+                              + soln(7) * var1 * var2 * var2;
+
+                  // q = b0 + c0*y + b2*y^2 + b3*z + c1*y^2*z
+                  double p2 = soln(1) + soln(2)*var1
+                              + soln(4) * var1 * var1
+                              + soln(6) * var2
+                              + soln(7) * var1 * var1 * var2;
+
+                  double coef_1 = std::abs(face_A[dd1]*coef_a[dd3][dd1]
+                                  + soln(0) + soln(1));
+
+                  u1[dd1] = quadrature.get_points()[k](dd1) * 
+                            (face_A[dd1] + face_B[dd1]*var1 + 
+                              face_C[dd1]*var2 + face_D[dd1]*var1*var2) *
+                            (coef_a[dd3][dd1] + coef_b[dd3][dd1]*var1 + 
+                              coef_c[dd3][dd1]*var2 + coef_d[dd3][dd1]*var1*var2);
+
+                  u1[bubb1_pos] = var1*(1.-var1)*p1;
+                  u1[bubb2_pos] = var2*(1.-var2)*p2;
+
+                  u1 = u1/coef_1;
+
+                  // ====================================================
+
+                  if(dd2==0){
+                    var1 = y; var2 = z;
+                    bubb1_pos = 1; bubb2_pos = 2;
+                  }else if(dd2==1){
+                    var1 = x; var2 = z;
+                    bubb1_pos = 0; bubb2_pos = 2;
+                  }else{
+                    var1 = x; var2 = y;
+                    bubb1_pos = 0; bubb2_pos = 1;
+                  }
+
+                  rhs=0.;
+                  soln=0.;
+                  rhs(0) = face_A[dd2]*coef_b[dd3][dd2]
+                          +face_B[dd2]*coef_a[dd3][dd2]; // y^hat
+                  rhs(1) = face_A[dd2]*coef_c[dd3][dd2]
+                          +face_C[dd2]*coef_a[dd3][dd2]; // z^hat
+                  rhs(2) = face_A[dd2]*coef_d[dd3][dd2]
+                          +face_D[dd2]*coef_a[dd3][dd2]
+                          +face_B[dd2]*coef_c[dd3][dd2]
+                          +face_C[dd2]*coef_b[dd3][dd2]; // y^hat * z^hat
+                  rhs(3) = face_B[dd2]*coef_b[dd3][dd2]; // y^hat^2
+                  rhs(4) = face_C[dd2]*coef_c[dd3][dd2]; // z^hat^2
+                  rhs(5) = face_B[dd2]*coef_d[dd3][dd2]
+                          +face_D[dd2]*coef_b[dd3][dd2]; // y^hat^2 * z^hat
+                  rhs(6) = face_C[dd2]*coef_d[dd3][dd2]
+                          +face_D[dd2]*coef_c[dd3][dd2]; // y^hat * z^hat^2
+                  rhs(7) = face_D[dd2]*coef_d[dd3][dd2]; // y^hat^2 * z^hat^2
+                  A_inv.vmult(soln, rhs);
+
+                  // p = a0 + c0*z + a2*z^2 + a3*y + c1*y*z^2
+                  p1 = soln(0) + soln(2)*var2
+                      + soln(3) * var2 * var2
+                      + soln(5) * var1
+                      + soln(7) * var1 * var2 * var2;
+
+                  // q = b0 + c0*y + b2*y^2 + b3*z + c1*y^2*z
+                  p2 = soln(1) + soln(2)*var1
+                      + soln(4) * var1 * var1
+                      + soln(6) * var2
+                      + soln(7) * var1 * var1 * var2;
+
+                  coef_1 = std::abs(-1.*face_A[dd2]*coef_a[dd3][dd2]
+                           + soln(0) + soln(1));
+
+                  u2[dd2] = -1. * quadrature.get_points()[k](dd2) *
+                            (face_A[dd2] + face_B[dd2]*var1 + 
+                              face_C[dd2]*var2 + face_D[dd2]*var1*var2) *
+                            (coef_a[dd3][dd2] + coef_b[dd3][dd2]*var1 + 
+                              coef_c[dd3][dd2]*var2 + coef_d[dd3][dd2]*var1*var2);
+
+                  u2[bubb1_pos] = var1*(1.-var1)*p1;
+                  u2[bubb2_pos] = var2*(1.-var2)*p2;
+
+                  u2 = u2/coef_1;
+
+                  corrected_shape_values[k] = u1 + u2;
+
                 } // for each quadrature points
 
                 mapping.transform(corrected_shape_values, shape_values,
                                   mapping_data, mapping_piola);
               } //if(degree = 1)
+
               else // if(degree > 1)
               {
                 mapping.transform(fe_data.shape_values[i], shape_values,
@@ -1469,6 +1575,78 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_face_values (
 
   // std::cout<<"cell "<<cell->index()<<"  face "<<face<<"   K2="<<K2<<"   K4="<<K4<<"   K6="<<K6 <<std::endl;
 
+
+  Tensor<1,dim> face_A;
+  Tensor<1,dim> face_B;
+  Tensor<1,dim> face_C;
+  Tensor<1,dim> face_D;
+
+  face_A[0] = A2; face_A[1] = A4; face_A[2] = A6;
+  face_B[0] = B2; face_B[1] = B4; face_B[2] = B6;
+  face_C[0] = C2; face_C[1] = C4; face_C[2] = C6;
+  face_D[0] = D2; face_D[1] = D4; face_D[2] = D6;
+
+  // set polynomial inversion matrix
+  FullMatrix<double> A_inv(8);
+  A_inv = 0;
+  A_inv(0,0) = -1./2.; //y
+  A_inv(1,1) = -1./2.; //z
+  A_inv(0,2) = -1./8.; A_inv(1,2) = -1./8.; A_inv(2,2) = -1./4.; //yz
+  A_inv(0,3) = -1./3.; A_inv(5,3) = -1./3.; //y^2
+  A_inv(1,4) = -1./3.; A_inv(6,4) = -1./3.; //z^2
+  A_inv(0,5) = -1./6.; A_inv(4,5) = -1./2.; A_inv(5,5) = -1./6.; //y^2*z
+  A_inv(1,6) = -1./6.; A_inv(3,6) = -1./2.; A_inv(6,6) = -1./6.; //y*z^2
+  A_inv(0,7) = -1./18.; A_inv(1,7) = -1./18.; 
+  A_inv(3,7) = -1./6.; A_inv(4,7) = -1./6.;
+  A_inv(5,7) = -1./18.; A_inv(6,7) = -1./18.; A_inv(7,7) = -1./6.; // y^2*z^2
+
+  // calculate coefficients for real x,y,z
+  // on face 2,4,6
+  // coef_a[i][j] means variable i on face (j+1)*2
+  std::vector<Tensor<1,dim> > coef_a, coef_b, coef_c, coef_d;
+  coef_a.resize(3); 
+  coef_b.resize(3);
+  coef_c.resize(3);
+  coef_d.resize(3);
+
+  // on face 2 y^hat,z^hat
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      coef_a[d][0] += supp_pts[k][d] * fe_data.corner_value(1,k);
+      coef_b[d][0] += supp_pts[k][d] * fe_data.corner_value(3,k);
+      coef_c[d][0] += supp_pts[k][d] * fe_data.corner_value(5,k);
+      coef_d[d][0] += supp_pts[k][d] * fe_data.corner_value(7,k);
+    }  
+
+  // on face 4 x^hat,z^hat
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      coef_a[d][1] += supp_pts[k][d] * fe_data.corner_value(2,k);
+      coef_b[d][1] += supp_pts[k][d] * fe_data.corner_value(3,k);
+      coef_c[d][1] += supp_pts[k][d] * fe_data.corner_value(6,k);
+      coef_d[d][1] += supp_pts[k][d] * fe_data.corner_value(7,k);
+    }  
+
+  // on face 6 x^hat,y^hat
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      coef_a[d][2] += supp_pts[k][d] * fe_data.corner_value(4,k);
+      coef_b[d][2] += supp_pts[k][d] * fe_data.corner_value(5,k);
+      coef_c[d][2] += supp_pts[k][d] * fe_data.corner_value(6,k);
+      coef_d[d][2] += supp_pts[k][d] * fe_data.corner_value(7,k);
+    }  
+
+  for(unsigned int k = 0; k < 3; ++k)  
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      coef_b[d][k] = coef_b[d][k] - coef_a[d][k]; 
+      coef_c[d][k] = coef_c[d][k] - coef_a[d][k];
+      coef_d[d][k] = coef_d[d][k] - coef_a[d][k] - coef_b[d][k] - coef_c[d][k];
+    }  
+
   for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
     {
       const unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
@@ -1481,12 +1659,11 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_face_values (
             case mapping_piola:
             {
               std::vector<Tensor<1,dim> > shape_values (n_q_points);
+              Quadrature<dim> q_3d = QProjector<dim>::project_to_face(quadrature,face);
 
               if(fe_degree == 0) //ATFull_0
               {
                 std::vector<Tensor<1,dim> > corrected_shape_values (n_q_points);
-
-                Quadrature<dim> q_3d = QProjector<dim>::project_to_face(quadrature,face);
 
                 for(unsigned int k=0; k<n_q_points; ++k)
                 {
@@ -1572,6 +1749,155 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_face_values (
                 mapping.transform(corrected_shape_values,
                                   shape_values, mapping_data, mapping_piola);
               }
+              else if(fe_degree == 1) //ATFull_1 and ATRed_1
+              {
+                std::vector<Tensor<1,dim> > corrected_shape_values (n_q_points);
+
+                for(unsigned int k=0; k<n_q_points; ++k)
+                {
+                  const double x = q_3d.get_points()[k](0);
+                  const double y = q_3d.get_points()[k](1);
+                  const double z = q_3d.get_points()[k](2);
+
+                  Tensor<1,dim> u1;
+                  Tensor<1,dim> u2;
+
+                  const int supp_idx = i + piola_boundary - this->dofs_per_cell;
+
+                  const int dd1 = supp_idx % 3;
+                  const int dd2 = (supp_idx+1) % 3;
+                  int dd3;
+                  if(supp_idx < 3) // first three supplements
+                  {                  
+                    dd3 = (supp_idx+2) % 3; //correction variable position
+                  }else{
+                    dd3 = dd2;
+                  }
+
+                  // ===================================================
+                  double var1, var2;
+                  int bubb1_pos, bubb2_pos;
+                  if(dd1==0){
+                    var1 = y; var2 = z;
+                    bubb1_pos = 1; bubb2_pos = 2;
+                  }else if(dd1==1){
+                    var1 = x; var2 = z;
+                    bubb1_pos = 0; bubb2_pos = 2;
+                  }else{
+                    var1 = x; var2 = y;
+                    bubb1_pos = 0; bubb2_pos = 1;
+                  }
+
+                  Vector<double> rhs(8), soln(8);
+                  rhs(0) = face_A[dd1]*coef_b[dd3][dd1]
+                          +face_B[dd1]*coef_a[dd3][dd1]; // y^hat
+                  rhs(1) = face_A[dd1]*coef_c[dd3][dd1]
+                          +face_C[dd1]*coef_a[dd3][dd1]; // z^hat
+                  rhs(2) = face_A[dd1]*coef_d[dd3][dd1]
+                          +face_D[dd1]*coef_a[dd3][dd1]
+                          +face_B[dd1]*coef_c[dd3][dd1]
+                          +face_C[dd1]*coef_b[dd3][dd1]; // y^hat * z^hat
+                  rhs(3) = face_B[dd1]*coef_b[dd3][dd1]; // y^hat^2
+                  rhs(4) = face_C[dd1]*coef_c[dd3][dd1]; // z^hat^2
+                  rhs(5) = face_B[dd1]*coef_d[dd3][dd1]
+                          +face_D[dd1]*coef_b[dd3][dd1]; // y^hat^2 * z^hat
+                  rhs(6) = face_C[dd1]*coef_d[dd3][dd1]
+                          +face_D[dd1]*coef_c[dd3][dd1]; // y^hat * z^hat^2
+                  rhs(7) = face_D[dd1]*coef_d[dd3][dd1]; // y^hat^2 * z^hat^2
+                  rhs *= -1.;
+                  A_inv.vmult(soln, rhs);
+
+                  // p = a0 + c0*z + a2*z^2 + a3*y + c1*y*z^2
+                  double p1 = soln(0) + soln(2)*var2
+                              + soln(3) * var2 * var2
+                              + soln(5) * var1
+                              + soln(7) * var1 * var2 * var2;
+
+                  // q = b0 + c0*y + b2*y^2 + b3*z + c1*y^2*z
+                  double p2 = soln(1) + soln(2)*var1
+                              + soln(4) * var1 * var1
+                              + soln(6) * var2
+                              + soln(7) * var1 * var1 * var2;
+
+                  double coef_1 = std::abs(face_A[dd1]*coef_a[dd3][dd1]
+                                  + soln(0) + soln(1));
+
+                  u1[dd1] = q_3d.get_points()[k](dd1) * 
+                            (face_A[dd1] + face_B[dd1]*var1 + 
+                              face_C[dd1]*var2 + face_D[dd1]*var1*var2) *
+                            (coef_a[dd3][dd1] + coef_b[dd3][dd1]*var1 + 
+                              coef_c[dd3][dd1]*var2 + coef_d[dd3][dd1]*var1*var2);
+
+                  u1[bubb1_pos] = var1*(1.-var1)*p1;
+                  u1[bubb2_pos] = var2*(1.-var2)*p2;
+
+                  u1 = u1/coef_1;
+
+                  // ====================================================
+
+                  if(dd2==0){
+                    var1 = y; var2 = z;
+                    bubb1_pos = 1; bubb2_pos = 2;
+                  }else if(dd2==1){
+                    var1 = x; var2 = z;
+                    bubb1_pos = 0; bubb2_pos = 2;
+                  }else{
+                    var1 = x; var2 = y;
+                    bubb1_pos = 0; bubb2_pos = 1;
+                  }
+
+                  rhs=0.;
+                  soln=0.;
+                  rhs(0) = face_A[dd2]*coef_b[dd3][dd2]
+                          +face_B[dd2]*coef_a[dd3][dd2]; // y^hat
+                  rhs(1) = face_A[dd2]*coef_c[dd3][dd2]
+                          +face_C[dd2]*coef_a[dd3][dd2]; // z^hat
+                  rhs(2) = face_A[dd2]*coef_d[dd3][dd2]
+                          +face_D[dd2]*coef_a[dd3][dd2]
+                          +face_B[dd2]*coef_c[dd3][dd2]
+                          +face_C[dd2]*coef_b[dd3][dd2]; // y^hat * z^hat
+                  rhs(3) = face_B[dd2]*coef_b[dd3][dd2]; // y^hat^2
+                  rhs(4) = face_C[dd2]*coef_c[dd3][dd2]; // z^hat^2
+                  rhs(5) = face_B[dd2]*coef_d[dd3][dd2]
+                          +face_D[dd2]*coef_b[dd3][dd2]; // y^hat^2 * z^hat
+                  rhs(6) = face_C[dd2]*coef_d[dd3][dd2]
+                          +face_D[dd2]*coef_c[dd3][dd2]; // y^hat * z^hat^2
+                  rhs(7) = face_D[dd2]*coef_d[dd3][dd2]; // y^hat^2 * z^hat^2
+                  A_inv.vmult(soln, rhs);
+
+                  // p = a0 + c0*z + a2*z^2 + a3*y + c1*y*z^2
+                  p1 = soln(0) + soln(2)*var2
+                      + soln(3) * var2 * var2
+                      + soln(5) * var1
+                      + soln(7) * var1 * var2 * var2;
+
+                  // q = b0 + c0*y + b2*y^2 + b3*z + c1*y^2*z
+                  p2 = soln(1) + soln(2)*var1
+                      + soln(4) * var1 * var1
+                      + soln(6) * var2
+                      + soln(7) * var1 * var1 * var2;
+
+                  coef_1 = std::abs(-1.*face_A[dd2]*coef_a[dd3][dd2]
+                           + soln(0) + soln(1));
+
+                  u2[dd2] = -1. * q_3d.get_points()[k](dd2) *
+                            (face_A[dd2] + face_B[dd2]*var1 + 
+                              face_C[dd2]*var2 + face_D[dd2]*var1*var2) *
+                            (coef_a[dd3][dd2] + coef_b[dd3][dd2]*var1 + 
+                              coef_c[dd3][dd2]*var2 + coef_d[dd3][dd2]*var1*var2);
+
+                  u2[bubb1_pos] = var1*(1.-var1)*p1;
+                  u2[bubb2_pos] = var2*(1.-var2)*p2;
+
+                  u2 = u2/coef_1;
+
+                  corrected_shape_values[k] = u1 + u2;
+
+                } // for each quadrature points
+
+                mapping.transform(corrected_shape_values, shape_values,
+                                  mapping_data, mapping_piola);
+              } //if(degree = 1)
               else // if(degree > 1)
               {
                 mapping.transform(make_slice(fe_data.shape_values[i], offset, n_q_points),
