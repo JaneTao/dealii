@@ -101,27 +101,34 @@ public:
   public:
     InternalData(const unsigned int n_shape_functions);
 
-    std::vector<Tensor<1,dim> > shape_derivatives_x;
-    std::vector<Tensor<1,dim> > shape_derivatives_y;
-    std::vector<Tensor<1,dim> > shape_derivatives_z;    
+    // std::vector<Tensor<1,dim> > shape_derivatives_x;
+    // std::vector<Tensor<1,dim> > shape_derivatives_y;
+    // std::vector<Tensor<1,dim> > shape_derivatives_z;    
     std::vector<Tensor<1,dim> > corner_derivatives;
+    std::vector<double> corner_values;
 
     std::vector<Point<spacedim> > mapping_support_points;
 
     unsigned int n_shape_functions;
 
-    Tensor<1,dim> derivative (const unsigned int qpoint,
-                              const unsigned int shape_nr,
-                              const unsigned int proj_dir) const;
+    // Tensor<1,dim> derivative (const unsigned int qpoint,
+    //                           const unsigned int shape_nr,
+    //                           const unsigned int proj_dir) const;
 
-    Tensor<1,dim> &derivative (const unsigned int qpoint,
-                               const unsigned int shape_nr,
-                               const unsigned int proj_dir);
+    // Tensor<1,dim> &derivative (const unsigned int qpoint,
+    //                            const unsigned int shape_nr,
+    //                            const unsigned int proj_dir);
 
     Tensor<1,dim> corner_derivative (const unsigned int cn_nr,
       const unsigned int shape_nr) const;
 
     Tensor<1,dim> &corner_derivative (const unsigned int cn_nr,
+      const unsigned int shape_nr);
+
+    double corner_value (const unsigned int cn_nr,
+      const unsigned int shape_nr) const;
+
+    double &corner_value (const unsigned int cn_nr,
       const unsigned int shape_nr);
 
     //===== for fe shape functions =====
@@ -159,49 +166,49 @@ public:
 };
 
 
-template<class POLY, int dim, int spacedim>
-inline
-Tensor<1,dim>
-FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
-                                                           const unsigned int shape_nr,
-                                                           const unsigned int proj_dir) const
-{
-  Assert(qpoint*n_shape_functions + shape_nr < shape_derivatives_x.size(),
-         ExcIndexRange(qpoint*n_shape_functions + shape_nr, 0,
-                       shape_derivatives_x.size()));
+// template<class POLY, int dim, int spacedim>
+// inline
+// Tensor<1,dim>
+// FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
+//                                                            const unsigned int shape_nr,
+//                                                            const unsigned int proj_dir) const
+// {
+//   Assert(qpoint*n_shape_functions + shape_nr < shape_derivatives_x.size(),
+//          ExcIndexRange(qpoint*n_shape_functions + shape_nr, 0,
+//                        shape_derivatives_x.size()));
 
-  if(proj_dir == 1)
-  {
-    return shape_derivatives_x [qpoint*n_shape_functions + shape_nr];
-  }else{
-    if(proj_dir == 2)
-      return shape_derivatives_y [qpoint*n_shape_functions + shape_nr];
-    else
-      return shape_derivatives_z [qpoint*n_shape_functions + shape_nr];
-  }
-}
+//   if(proj_dir == 1)
+//   {
+//     return shape_derivatives_x [qpoint*n_shape_functions + shape_nr];
+//   }else{
+//     if(proj_dir == 2)
+//       return shape_derivatives_y [qpoint*n_shape_functions + shape_nr];
+//     else
+//       return shape_derivatives_z [qpoint*n_shape_functions + shape_nr];
+//   }
+// }
 
-template<class POLY, int dim, int spacedim>
-inline
-Tensor<1,dim> &
-FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
-                                                           const unsigned int shape_nr,
-                                                           const unsigned int proj_dir)
-{
-  Assert(qpoint*n_shape_functions + shape_nr < shape_derivatives_x.size(),
-         ExcIndexRange(qpoint*n_shape_functions + shape_nr, 0,
-                       shape_derivatives_x.size()));
+// template<class POLY, int dim, int spacedim>
+// inline
+// Tensor<1,dim> &
+// FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::derivative (const unsigned int qpoint,
+//                                                            const unsigned int shape_nr,
+//                                                            const unsigned int proj_dir)
+// {
+//   Assert(qpoint*n_shape_functions + shape_nr < shape_derivatives_x.size(),
+//          ExcIndexRange(qpoint*n_shape_functions + shape_nr, 0,
+//                        shape_derivatives_x.size()));
 
-  if(proj_dir == 1)
-  {
-    return shape_derivatives_x [qpoint*n_shape_functions + shape_nr];
-  }else{
-    if(proj_dir == 2)
-      return shape_derivatives_y [qpoint*n_shape_functions + shape_nr];
-    else
-      return shape_derivatives_z [qpoint*n_shape_functions + shape_nr];   
-  }
-}
+//   if(proj_dir == 1)
+//   {
+//     return shape_derivatives_x [qpoint*n_shape_functions + shape_nr];
+//   }else{
+//     if(proj_dir == 2)
+//       return shape_derivatives_y [qpoint*n_shape_functions + shape_nr];
+//     else
+//       return shape_derivatives_z [qpoint*n_shape_functions + shape_nr];   
+//   }
+// }
 
 
 template<class POLY, int dim, int spacedim>
@@ -227,6 +234,32 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::corner_derivative (const uns
                        corner_derivatives.size()));
   return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
 }
+
+template<class POLY, int dim, int spacedim>
+inline
+double
+FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::corner_value (const unsigned int cn_nr,
+  const unsigned int shape_nr) const
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_values.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_values.size()));
+  return corner_values [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<class POLY, int dim, int spacedim>
+inline
+double &
+FE_PolyTensor_NPC<POLY,dim,spacedim>::InternalData::corner_value (const unsigned int cn_nr,
+  const unsigned int shape_nr)
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_values.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_values.size()));
+  return corner_values [cn_nr*n_shape_functions + shape_nr];
+}
+
+
 
 DEAL_II_NAMESPACE_CLOSE
 

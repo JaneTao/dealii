@@ -22,6 +22,8 @@
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/mapping_cartesian.h>
 #include <deal.II/grid/tria_accessor.h>
+#include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/vector.h>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -407,11 +409,11 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::get_data (
       }
 
   // ========== compute shapes =====
-  data->shape_derivatives_x.resize(data->n_shape_functions * n_q_points);
-  data->shape_derivatives_y.resize(data->n_shape_functions * n_q_points);
-  data->shape_derivatives_z.resize(data->n_shape_functions * n_q_points);
+  // data->shape_derivatives_x.resize(data->n_shape_functions * n_q_points);
+  // data->shape_derivatives_y.resize(data->n_shape_functions * n_q_points);
+  // data->shape_derivatives_z.resize(data->n_shape_functions * n_q_points);
   data->corner_derivatives.resize(data->n_shape_functions * GeometryInfo<dim>::vertices_per_cell);
-
+  data->corner_values.resize(data->n_shape_functions * GeometryInfo<dim>::vertices_per_cell);
   compute_shapes (quadrature.get_points(), *data);
 
   // Assert(false, ExcMessage("get_data_done"));
@@ -456,104 +458,104 @@ namespace internal
                             typename dealii::FE_PolyTensor_NPC<POLY,3,spacedim>::InternalData &data)
     {
       (void)n_shape_functions;
-      const unsigned int n_points=unit_points.size();
-      for (unsigned int k = 0 ; k < n_points ; ++k)
-        {
-          double x = unit_points[k](0);
-          double y = unit_points[k](1);
-          double z = unit_points[k](2);
+      // const unsigned int n_points=unit_points.size();
+      // for (unsigned int k = 0 ; k < n_points ; ++k)
+      //   {
+      //     double x = unit_points[k](0);
+      //     double y = unit_points[k](1);
+      //     double z = unit_points[k](2);
 
-          if (data.shape_derivatives_x.size()!=0)
-            {
-              Assert(data.shape_derivatives_x.size()==n_shape_functions*n_points,
-                     ExcInternalError());
-              // replace x with 1.0
-              data.derivative(k,0,1)[0] = (y-1.)*(1.-z);
-              data.derivative(k,1,1)[0] = (1.-y)*(1.-z);
-              data.derivative(k,2,1)[0] = -y*(1.-z);
-              data.derivative(k,3,1)[0] = y*(1.-z);
-              data.derivative(k,4,1)[0] = (y-1.)*z;
-              data.derivative(k,5,1)[0] = (1.-y)*z;
-              data.derivative(k,6,1)[0] = -y*z;
-              data.derivative(k,7,1)[0] = y*z;
-              data.derivative(k,0,1)[1] = 0.0;
-              data.derivative(k,1,1)[1] = -(1.-z);
-              data.derivative(k,2,1)[1] = 0.0;
-              data.derivative(k,3,1)[1] = (1.-z);
-              data.derivative(k,4,1)[1] = 0.0;
-              data.derivative(k,5,1)[1] = -z;
-              data.derivative(k,6,1)[1] = 0.0;
-              data.derivative(k,7,1)[1] = z;
-              data.derivative(k,0,1)[2] = 0.0;
-              data.derivative(k,1,1)[2] = (y-1.);
-              data.derivative(k,2,1)[2] = 0.0;
-              data.derivative(k,3,1)[2] = -y;
-              data.derivative(k,4,1)[2] = 0.0;
-              data.derivative(k,5,1)[2] = (1.-y);
-              data.derivative(k,6,1)[2] = 0.0;
-              data.derivative(k,7,1)[2] = y;
-            }
-          if (data.shape_derivatives_y.size()!=0)
-            {
-              Assert(data.shape_derivatives_y.size()==n_shape_functions*n_points,
-                     ExcInternalError());
-              // replace y with 1.0
-              data.derivative(k,0,2)[0] = 0.0;
-              data.derivative(k,1,2)[0] = 0.0;
-              data.derivative(k,2,2)[0] = -(1.-z);
-              data.derivative(k,3,2)[0] = (1.-z);
-              data.derivative(k,4,2)[0] = 0.0;
-              data.derivative(k,5,2)[0] = 0.0;
-              data.derivative(k,6,2)[0] = -z;
-              data.derivative(k,7,2)[0] = z;
-              data.derivative(k,0,2)[1] = (x-1.)*(1.-z);
-              data.derivative(k,1,2)[1] = -x*(1.-z);
-              data.derivative(k,2,2)[1] = (1.-x)*(1.-z);
-              data.derivative(k,3,2)[1] = x*(1.-z);
-              data.derivative(k,4,2)[1] = (x-1.)*z;
-              data.derivative(k,5,2)[1] = -x*z;
-              data.derivative(k,6,2)[1] = (1.-x)*z;
-              data.derivative(k,7,2)[1] = x*z;
-              data.derivative(k,0,2)[2] = 0.0;
-              data.derivative(k,1,2)[2] = 0.0;
-              data.derivative(k,2,2)[2] = (x-1.);
-              data.derivative(k,3,2)[2] = -x;
-              data.derivative(k,4,2)[2] = 0.0;
-              data.derivative(k,5,2)[2] = 0.0;
-              data.derivative(k,6,2)[2] = (1.-x);
-              data.derivative(k,7,2)[2] = x;
-            }
-          if (data.shape_derivatives_z.size()!=0)
-            {
-              Assert(data.shape_derivatives_z.size()==n_shape_functions*n_points,
-                     ExcInternalError());
-              // replace z with 1.0
-              data.derivative(k,0,3)[0] = 0.0;
-              data.derivative(k,1,3)[0] = 0.0;
-              data.derivative(k,2,3)[0] = 0.0;
-              data.derivative(k,3,3)[0] = 0.0;
-              data.derivative(k,4,3)[0] = (y-1.);
-              data.derivative(k,5,3)[0] = (1.-y);
-              data.derivative(k,6,3)[0] = -y;
-              data.derivative(k,7,3)[0] = y;
-              data.derivative(k,0,3)[1] = 0.0;
-              data.derivative(k,1,3)[1] = 0.0;
-              data.derivative(k,2,3)[1] = 0.0;
-              data.derivative(k,3,3)[1] = 0.0;
-              data.derivative(k,4,3)[1] = (x-1.);
-              data.derivative(k,5,3)[1] = -x;
-              data.derivative(k,6,3)[1] = (1.-x);
-              data.derivative(k,7,3)[1] = x;
-              data.derivative(k,0,3)[2] = (x-1)*(1.-y);
-              data.derivative(k,1,3)[2] = x*(y-1.);
-              data.derivative(k,2,3)[2] = (x-1.)*y;
-              data.derivative(k,3,3)[2] = -x*y;
-              data.derivative(k,4,3)[2] = (1.-x)*(1.-y);
-              data.derivative(k,5,3)[2] = x*(1.-y);
-              data.derivative(k,6,3)[2] = (1.-x)*y;
-              data.derivative(k,7,3)[2] = x*y; 
-            }                        
-        } // for each quadrature point
+      //     if (data.shape_derivatives_x.size()!=0)
+      //       {
+      //         Assert(data.shape_derivatives_x.size()==n_shape_functions*n_points,
+      //                ExcInternalError());
+      //         // replace x with 1.0
+      //         data.derivative(k,0,1)[0] = (y-1.)*(1.-z);
+      //         data.derivative(k,1,1)[0] = (1.-y)*(1.-z);
+      //         data.derivative(k,2,1)[0] = -y*(1.-z);
+      //         data.derivative(k,3,1)[0] = y*(1.-z);
+      //         data.derivative(k,4,1)[0] = (y-1.)*z;
+      //         data.derivative(k,5,1)[0] = (1.-y)*z;
+      //         data.derivative(k,6,1)[0] = -y*z;
+      //         data.derivative(k,7,1)[0] = y*z;
+      //         data.derivative(k,0,1)[1] = 0.0;
+      //         data.derivative(k,1,1)[1] = -(1.-z);
+      //         data.derivative(k,2,1)[1] = 0.0;
+      //         data.derivative(k,3,1)[1] = (1.-z);
+      //         data.derivative(k,4,1)[1] = 0.0;
+      //         data.derivative(k,5,1)[1] = -z;
+      //         data.derivative(k,6,1)[1] = 0.0;
+      //         data.derivative(k,7,1)[1] = z;
+      //         data.derivative(k,0,1)[2] = 0.0;
+      //         data.derivative(k,1,1)[2] = (y-1.);
+      //         data.derivative(k,2,1)[2] = 0.0;
+      //         data.derivative(k,3,1)[2] = -y;
+      //         data.derivative(k,4,1)[2] = 0.0;
+      //         data.derivative(k,5,1)[2] = (1.-y);
+      //         data.derivative(k,6,1)[2] = 0.0;
+      //         data.derivative(k,7,1)[2] = y;
+      //       }
+      //     if (data.shape_derivatives_y.size()!=0)
+      //       {
+      //         Assert(data.shape_derivatives_y.size()==n_shape_functions*n_points,
+      //                ExcInternalError());
+      //         // replace y with 1.0
+      //         data.derivative(k,0,2)[0] = 0.0;
+      //         data.derivative(k,1,2)[0] = 0.0;
+      //         data.derivative(k,2,2)[0] = -(1.-z);
+      //         data.derivative(k,3,2)[0] = (1.-z);
+      //         data.derivative(k,4,2)[0] = 0.0;
+      //         data.derivative(k,5,2)[0] = 0.0;
+      //         data.derivative(k,6,2)[0] = -z;
+      //         data.derivative(k,7,2)[0] = z;
+      //         data.derivative(k,0,2)[1] = (x-1.)*(1.-z);
+      //         data.derivative(k,1,2)[1] = -x*(1.-z);
+      //         data.derivative(k,2,2)[1] = (1.-x)*(1.-z);
+      //         data.derivative(k,3,2)[1] = x*(1.-z);
+      //         data.derivative(k,4,2)[1] = (x-1.)*z;
+      //         data.derivative(k,5,2)[1] = -x*z;
+      //         data.derivative(k,6,2)[1] = (1.-x)*z;
+      //         data.derivative(k,7,2)[1] = x*z;
+      //         data.derivative(k,0,2)[2] = 0.0;
+      //         data.derivative(k,1,2)[2] = 0.0;
+      //         data.derivative(k,2,2)[2] = (x-1.);
+      //         data.derivative(k,3,2)[2] = -x;
+      //         data.derivative(k,4,2)[2] = 0.0;
+      //         data.derivative(k,5,2)[2] = 0.0;
+      //         data.derivative(k,6,2)[2] = (1.-x);
+      //         data.derivative(k,7,2)[2] = x;
+      //       }
+      //     if (data.shape_derivatives_z.size()!=0)
+      //       {
+      //         Assert(data.shape_derivatives_z.size()==n_shape_functions*n_points,
+      //                ExcInternalError());
+      //         // replace z with 1.0
+      //         data.derivative(k,0,3)[0] = 0.0;
+      //         data.derivative(k,1,3)[0] = 0.0;
+      //         data.derivative(k,2,3)[0] = 0.0;
+      //         data.derivative(k,3,3)[0] = 0.0;
+      //         data.derivative(k,4,3)[0] = (y-1.);
+      //         data.derivative(k,5,3)[0] = (1.-y);
+      //         data.derivative(k,6,3)[0] = -y;
+      //         data.derivative(k,7,3)[0] = y;
+      //         data.derivative(k,0,3)[1] = 0.0;
+      //         data.derivative(k,1,3)[1] = 0.0;
+      //         data.derivative(k,2,3)[1] = 0.0;
+      //         data.derivative(k,3,3)[1] = 0.0;
+      //         data.derivative(k,4,3)[1] = (x-1.);
+      //         data.derivative(k,5,3)[1] = -x;
+      //         data.derivative(k,6,3)[1] = (1.-x);
+      //         data.derivative(k,7,3)[1] = x;
+      //         data.derivative(k,0,3)[2] = (x-1)*(1.-y);
+      //         data.derivative(k,1,3)[2] = x*(y-1.);
+      //         data.derivative(k,2,3)[2] = (x-1.)*y;
+      //         data.derivative(k,3,3)[2] = -x*y;
+      //         data.derivative(k,4,3)[2] = (1.-x)*(1.-y);
+      //         data.derivative(k,5,3)[2] = x*(1.-y);
+      //         data.derivative(k,6,3)[2] = (1.-x)*y;
+      //         data.derivative(k,7,3)[2] = x*y; 
+      //       }                        
+      //   } // for each quadrature point
 
         for(unsigned int cr = 0 ; cr < 8 ; ++cr )
         {
@@ -588,6 +590,25 @@ namespace internal
           data.corner_derivative(cr,5)[2] = x*(1.-y);
           data.corner_derivative(cr,6)[2] = (1.-x)*y;
           data.corner_derivative(cr,7)[2] = x*y;
+        }
+
+        for(unsigned int cr = 0 ; cr < 8 ; ++cr )
+        {
+          int x = cr % 2;
+          int y = ((cr - x)/2) % 2;
+          int z = (cr < 4) ? 0 : 1;
+
+          Assert(data.corner_values.size() == n_shape_functions * 8,
+            ExcInternalError());
+
+          data.corner_value(cr,0) = (1.-x)*(1.-y)*(1.-z);
+          data.corner_value(cr,1) = x*(1.-y)*(1.-z);
+          data.corner_value(cr,2) = (1.-x)*y*(1.-z);
+          data.corner_value(cr,3) = x*y*(1.-z);
+          data.corner_value(cr,4) = (1.-x)*(1.-y)*z;
+          data.corner_value(cr,5) = x*(1.-y)*z;
+          data.corner_value(cr,6) = (1.-x)*y*z;
+          data.corner_value(cr,7) = x*y*z;
         }
     } // compute_shapes_virtual_3D
   }
@@ -901,6 +922,77 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
 
   // std::cout<<"cell "<<cell->index()<<"   K2="<<K2<<"   K4="<<K4<<"   K6="<<K6 <<std::endl;
 
+  Tensor<1,dim> face_A;
+  Tensor<1,dim> face_B;
+  Tensor<1,dim> face_C;
+  Tensor<1,dim> face_D;
+
+  face_A[0] = A2; face_A[1] = A4; face_A[2] = A6;
+  face_B[0] = B2; face_B[1] = B4; face_B[2] = B6;
+  face_C[0] = C2; face_C[1] = C4; face_C[2] = C6;
+  face_D[0] = D2; face_D[1] = D4; face_D[2] = D6;
+
+  // set polynomial inversion matrix
+  FullMatrix<double> A_inv(8);
+  A_inv = 0;
+  A_inv(0,0) = -1./2.; //y
+  A_inv(1,1) = -1./2.; //z
+  A_inv(0,2) = -1./8.; A_inv(1,2) = -1./8.; A_inv(2,2) = -1./4.; //yz
+  A_inv(0,3) = -1./3.; A_inv(5,3) = -1./3.; //y^2
+  A_inv(1,4) = -1./3.; A_inv(6,4) = -1./3.; //z^2
+  A_inv(0,5) = -1./6.; A_inv(4,5) = -1./2.; A_inv(5,5) = -1./6.; //y^2*z
+  A_inv(1,6) = -1./6.; A_inv(3,6) = -1./2.; A_inv(6,6) = -1./6.; //y*z^2
+  A_inv(0,7) = -1./18.; A_inv(1,7) = -1./18.; 
+  A_inv(3,7) = -1./6.; A_inv(4,7) = -1./6.;
+  A_inv(5,7) = -1./18.; A_inv(6,7) = -1./18.; A_inv(7,7) = -1./6.; // y^2*z^2
+
+  // calculate coefficients for real x,y,z
+  // on face 2,4,6
+  // coef_a[i][j] means variable i on face (j+1)*2
+  std::vector<Tensor<1,dim> > coef_a, coef_b, coef_c, coef_d;
+  coef_a.resize(3); 
+  coef_b.resize(3);
+  coef_c.resize(3);
+  coef_d.resize(3);
+
+  // on face 2 y^hat,z^hat
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      coef_a[d][0] += supp_pts[k][d] * fe_data.corner_value(1,k);
+      coef_b[d][0] += supp_pts[k][d] * fe_data.corner_value(3,k);
+      coef_c[d][0] += supp_pts[k][d] * fe_data.corner_value(5,k);
+      coef_d[d][0] += supp_pts[k][d] * fe_data.corner_value(7,k);
+    }  
+
+  // on face 4 x^hat,z^hat
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      coef_a[d][1] += supp_pts[k][d] * fe_data.corner_value(2,k);
+      coef_b[d][1] += supp_pts[k][d] * fe_data.corner_value(3,k);
+      coef_c[d][1] += supp_pts[k][d] * fe_data.corner_value(6,k);
+      coef_d[d][1] += supp_pts[k][d] * fe_data.corner_value(7,k);
+    }  
+
+  // on face 6 x^hat,y^hat
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      coef_a[d][2] += supp_pts[k][d] * fe_data.corner_value(4,k);
+      coef_b[d][2] += supp_pts[k][d] * fe_data.corner_value(5,k);
+      coef_c[d][2] += supp_pts[k][d] * fe_data.corner_value(6,k);
+      coef_d[d][2] += supp_pts[k][d] * fe_data.corner_value(7,k);
+    }  
+
+  for(unsigned int k = 0; k < 3; ++k)  
+    for(unsigned int d = 0; d<dim; ++d)
+    {
+      coef_b[d][k] = coef_b[d][k] - coef_a[d][k]; 
+      coef_c[d][k] = coef_c[d][k] - coef_a[d][k];
+      coef_d[d][k] = coef_d[d][k] - coef_a[d][k] - coef_b[d][k] - coef_c[d][k];
+    }  
+
   for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
     {
       const unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
@@ -995,6 +1087,60 @@ FE_PolyTensor_NPC<POLY,dim,spacedim>::fill_fe_values (
                 mapping.transform(corrected_shape_values, shape_values,
                                   mapping_data, mapping_piola);
               }
+              if(fe_degree == 1) //ATFull_1 and ATRed_1
+              {
+                std::vector<Tensor<1,dim> > corrected_shape_values (n_q_points);
+
+                for(unsigned int k=0; k<n_q_points; ++k)
+                {
+                  const double x = quadrature.get_points()[k](0);
+                  const double y = quadrature.get_points()[k](1);
+                  const double z = quadrature.get_points()[k](2);
+                  Tensor<1,dim> pt;
+                  pt[0] = x; pt[1] = y; pt[2] = z;
+
+                  Tensor<1,dim> u1;
+                  Tensor<1,dim> u2;
+
+                  const int supp_idx = i + piola_boundary - this->dofs_per_cell;
+
+                  if(supp_idx < 3) // first three supplements
+                  {
+                    int dd1 = supp_idx % 3;
+                    int dd2 = (supp_idx+1) % 3;
+                    int dd3 = (supp_idx+2) % 3; //correction variable position
+
+                    double var1, var2;
+                    int bubb1_pos, bubb2_pos;
+                    if(dd1==0){
+                      var1 = y; var2 = z;
+                      bubb1_pos = 1; bubb2_pos = 2;
+                    }else if(dd1==1){
+                      var1 = x; var2 = z;
+                      bubb1_pos = 0; bubb2_pos = 2;
+                    }else{
+                      var1 = x; var2 = y;
+                      bubb1_pos = 0; bubb2_pos = 1;
+                    }
+
+                    Vector<double> rhs(8);
+                    rhs(0) = face_A[dd1]*coef_b[dd3][dd1]
+                            + face_B[dd1]*coef_a[dd3][dd1]; // y^hat
+                    rhs(1) = face_A[dd1]*coef_c[dd3][dd1]
+                            + face_C[dd1]*coef_a[dd3][dd1]; // z^hat
+                    rhs(2) = 
+
+
+                  }
+                  else // last three supplements
+                  {
+
+                  }
+                } // for each quadrature points
+
+                mapping.transform(corrected_shape_values, shape_values,
+                                  mapping_data, mapping_piola);
+              } //if(degree = 1)
               else // if(degree > 1)
               {
                 mapping.transform(fe_data.shape_values[i], shape_values,
