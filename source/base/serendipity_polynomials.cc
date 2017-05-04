@@ -117,7 +117,143 @@ namespace internal
                               const FiniteElementData<3> &fe_data,
                               unsigned int       (&indices)[3])
     {
-      Assert(false, ExcNotImplemented());
+      if( n < fe_data.first_line_index )
+      {
+        //vertex dofs
+        indices[0] = n % 2;
+        indices[1] = (unsigned int)((n - indices[0])/2) % 2;
+        indices[2] = n / 4;
+        return;
+      }
+      else if (n < fe_data.first_quad_index)
+      {
+        //line dofs
+        const unsigned int ln = (n - fe_data.first_line_index)/ fe_data.dofs_per_line;
+        const unsigned int li = (n - fe_data.first_line_index)% fe_data.dofs_per_line;
+
+        if(ln == 0 || ln == 1 || ln == 2 || ln == 3)
+        {
+          indices[2] = 0;
+        }
+        else
+        {
+          if(ln == 4 || ln == 5 || ln == 6 || ln == 7)
+            indices[2] = 1;
+          else
+            indices[2] = li + 2;
+        }
+
+        if(ln == 0 || ln == 4 || ln == 8 || ln == 10)
+        {
+          indices[0] = 0;
+        }
+        else
+        {
+          if(ln == 1 || ln == 5 || ln == 9 || ln == 11)
+            indices[0] = 1;
+          else
+            indices[0] = li + 2;
+        }
+
+        if(ln == 2 || ln == 6 || ln == 8 || ln == 9)
+        {
+          indices[1] = 0;
+        }
+        else
+        {
+          if(ln == 3 || ln == 7 || ln == 10 || ln == 11)
+            indices[1] = 1;
+          else
+            indices[1] = li + 2;
+        }
+        return;
+      }
+      else if(n < fe_data.first_hex_index)
+      {
+        //quad dofs
+        const unsigned int fn = (n - fe_data.first_quad_index) / fe_data.dofs_per_quad;
+        const unsigned int fi = (n - fe_data.first_quad_index) % fe_data.dofs_per_quad;
+        const unsigned int n_1d = fe_data.degree-2*2 + 1;
+        Assert(n_1d > 0 , ExcInternalError()); 
+             
+        if(fn == 0 || fn == 1)
+        {
+          indices[0] = fn % 2;
+
+          unsigned int k=0;
+           for (unsigned int iy=0; iy<n_1d; ++iy)
+             if (fi < k+n_1d-iy)
+              {
+                indices[1] = fi-k+2;
+                indices[2] = iy+2;
+                return;
+              }
+             else
+              k+=n_1d-iy;
+
+        }
+
+        if(fn == 2 || fn == 3)
+        {
+          indices[1] = fn % 2;
+
+          unsigned int k=0;
+           for (unsigned int iy=0; iy<n_1d; ++iy)
+             if (fi < k+n_1d-iy)
+              {
+                indices[2] = fi-k+2;
+                indices[0] = iy+2;
+                return;
+              }
+             else
+              k+=n_1d-iy;
+        }
+
+        if(fn == 4 || fn == 5)
+        {
+          indices[2] = fn % 2;
+
+          unsigned int k=0;
+           for (unsigned int iy=0; iy<n_1d; ++iy)
+             if (fi < k+n_1d-iy)
+              {
+                indices[0] = fi-k+2;
+                indices[1] = iy+2;
+                return;
+              }
+             else
+              k+=n_1d-iy;
+        }
+        else
+        {
+          Assert(false, ExcNotImplemented());
+        }
+      }
+      else if(n < fe_data.dofs_per_cell)
+      {
+        //hex dofs
+        const unsigned int hi = n - fe_data.first_hex_index;
+        const unsigned int n_1d = fe_data.degree-2*2 + 1;
+        Assert(n_1d > 0 , ExcInternalError()); 
+
+        unsigned int k=0;
+        for (unsigned int iz=0; iz<n_1d; ++iz)
+          for (unsigned int iy=0; iy<n_1d-iz; ++iy)
+            if (hi < k+n_1d-iy-iz)
+              {
+                indices[0] = hi-k+2;
+                indices[1] = iy+2;
+                indices[2] = iz+2;
+                return;
+              }
+            else
+              k += n_1d-iy-iz;      
+      }
+      else
+      {
+        Assert(false, ExcNotImplemented());
+      }
+
     }
 
   }
