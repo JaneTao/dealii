@@ -13,21 +13,35 @@
 //
 // ---------------------------------------------------------------------
 
-
+#include <deal.II/base/derivative_form.h>
 #include <deal.II/base/quadrature.h>
 #include <deal.II/base/qprojector.h>
 #include <deal.II/base/template_constraints.h>
 #include <deal.II/base/serendipity_polynomials.h>
 #include <deal.II/fe/fe_s_np_base.h>
+#include <deal.II/fe/fe_values.h>
 #include <deal.II/fe/fe_nothing.h>
 #include <deal.II/fe/fe_tools.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/utilities.h>
+#include <deal.II/fe/mapping_cartesian.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/vector.h>
 
 #include <vector>
 #include <sstream>
 
 DEAL_II_NAMESPACE_OPEN
+
+template<class POLY, int dim, int spacedim>
+const unsigned int FE_S_NP_Base<POLY,dim,spacedim>::n_shape_functions;
+
+template<class POLY, int dim, int spacedim>
+FE_S_NP_Base<POLY,dim,spacedim>::InternalData::InternalData (const unsigned int n_shape_functions)
+  :
+  n_shape_functions (n_shape_functions)
+{}
 
 
 namespace FE_S_NP_Helper
@@ -1401,6 +1415,38 @@ FE_S_NP_Base<POLY,dim,spacedim>::get_constant_modes () const
   constant_modes.fill(true);
   return std::pair<Table<2,bool>, std::vector<unsigned int> >
          (constant_modes, std::vector<unsigned int>(1, 0));
+}
+
+
+// ------  add by Zhen Tao -------------
+
+template <typename POLY, int dim, int spacedim>
+UpdateFlags
+FE_S_NP_Base<POLY,dim,spacedim>::update_once (const UpdateFlags) const
+{
+  return update_default;
+}
+
+template <typename POLY, int dim, int spacedim>
+UpdateFlags
+FE_S_NP_Base<POLY,dim,spacedim>::update_each (const UpdateFlags) const
+{
+  UpdateFlags out = flags;
+
+  if (flags & (update_values | update_gradients))
+    out |= update_quadrature_points ;
+
+  return out;
+}
+
+template <class POLY, int dim, int spacedim>
+typename Mapping<dim,spacedim>::InternalDataBase *
+FE_S_NP_Base<POLY,dim,spacedim>::get_data (
+  const UpdateFlags      update_flags,
+  const Mapping<dim,spacedim>    &mapping,
+  const Quadrature<dim> &quadrature) const
+{
+  
 }
 
 

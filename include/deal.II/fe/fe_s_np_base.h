@@ -4,6 +4,9 @@
 #include <deal.II/base/config.h>
 #include <deal.II/fe/fe_poly.h>
 #include <deal.II/base/thread_management.h>
+#include <deal.II/base/derivative_form.h>
+#include <deal.II/grid/tria_iterator.h>
+#include <deal.II/dofs/dof_accessor.h>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -135,9 +138,15 @@ protected:
 
   class InternalData : public FiniteElement<dim,spacedim>::InternalDataBase
   {
+    public:
+      InternalData(const unsigned int n_shape_functions);
 
+    std::vector<Point<spacedim> > mapping_support_points;
+
+    unsigned int n_shape_functions;
   };
 
+  static const unsigned int n_shape_functions = GeometryInfo<dim>::vertices_per_cell;
 
 private:
   mutable Threads::Mutex mutex;
