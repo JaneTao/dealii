@@ -28,7 +28,7 @@
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/vector.h>
-
+#include <deal.II/lac/lapack_full_matrix.h>
 #include <vector>
 #include <sstream>
 
@@ -1429,7 +1429,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::update_once (const UpdateFlags) const
 
 template <typename POLY, int dim, int spacedim>
 UpdateFlags
-FE_S_NP_Base<POLY,dim,spacedim>::update_each (const UpdateFlags) const
+FE_S_NP_Base<POLY,dim,spacedim>::update_each (const UpdateFlags flags) const
 {
   UpdateFlags out = flags;
 
@@ -1631,7 +1631,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
     for(unsigned int vertex_no = 0; vertex_no<4; ++vertex_no, ++row_no)
     {
       // set vertex dofs
-      Point<dim> dof_pt;
+      Tensor<1, dim> dof_pt;
       dof_pt = supp_pts[vertex_no];
       // set pre_pre_phi values
       pre_pre_phi[0] = (dof_pt - supp_pts[0])*Gamma[0]; //lambda_0
@@ -1645,7 +1645,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
       pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
       // set matrix A
@@ -1675,7 +1675,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
       pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -1692,7 +1692,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[4]*std::pow(pre_pre_phi[5],j);
       }
       A[row_no][2*fe_degree+1] = 
-        pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],j);
+        pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
     }
 
     Assert(row_no==fe_degree+3, ExcMessage("row number not correct"));
@@ -1715,7 +1715,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
       pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -1732,7 +1732,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[4]*std::pow(pre_pre_phi[5],j);
       }
       A[row_no][2*fe_degree+1] = 
-        pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],j);
+        pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
     }
 
     Assert(row_no==2*fe_degree+2, ExcMessage("row number not correct"));
@@ -1755,7 +1755,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
       pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -1772,7 +1772,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[5]*std::pow(pre_pre_phi[4],j);
       }
       A[row_no][4*fe_degree-1] = 
-        pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],j);
+        pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
     }
 
     Assert(row_no==3*fe_degree+1, ExcMessage("row number not correct"));
@@ -1795,7 +1795,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
       pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -1812,13 +1812,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[5]*std::pow(pre_pre_phi[4],j);
       }
       A[row_no][4*fe_degree-1] = 
-        pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],j);
+        pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
     }
   } //end (dim==2)
 
   // 3) invert A
   { // note for square matrix if AB=I, then BA=I
-    LAPACKFullMatrix<double> A_inverse(A.m(), A.n());
+    LAPACKFullMatrix<double> ll_inverse(A.m(), A.n());
     ll_inverse = A;
     ll_inverse.invert();
     A = ll_inverse;
@@ -1848,7 +1848,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
       pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -1983,8 +1983,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
 
           if (flags & update_gradients)
           {
-            data.shape_gradients(i,k)[0] = soln_dx[i];
-            data.shape_gradients(i,k)[1] = soln_dy[i];
+            data.shape_gradients[i][k][0] = soln_dx[i];
+            data.shape_gradients[i][k][1] = soln_dy[i];
           }
          }
          else
@@ -2013,7 +2013,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
           }
           if (flags & update_gradients)
           { 
-            data.shape_gradients(i,k)[0] = 
+            data.shape_gradients[i][k][0] = 
             pre_phi_int_dx * std::pow(pre_pre_phi[4],p)
             * std::pow(pre_pre_phi[5],q)
             + pre_phi_int * ((p==0)?0: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][0])
@@ -2021,7 +2021,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
             + pre_phi_int * std::pow(pre_pre_phi[4],p)
             * ((q==0)? 0: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][0]);
 
-            data.shape_gradients(i,k)[1] = 
+            data.shape_gradients[i][k][1] = 
             pre_phi_int_dy * std::pow(pre_pre_phi[4],p)
             * std::pow(pre_pre_phi[5],q)
             + pre_phi_int * ((p==0)?0: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][1])
