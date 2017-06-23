@@ -1625,6 +1625,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
   if(dim==2)
   {
     pre_pre_phi.resize(8);
+    pre_pre_phi_grad.resize(8);
+
     unsigned int row_no = 0;
     for(unsigned int vertex_no = 0; vertex_no<4; ++vertex_no, ++row_no)
     {
@@ -1824,10 +1826,217 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
 
   // 4) set values and grads for each quadrature points
   for(unsigned int k=0; k<n_q_points; ++k)
+  {
+    Point<dim> quad_pt = data.quadrature_points[k];
+
+    Vector<double> pre_phi;
+    Vector<double> pre_phi_dx;
+    Vector<double> pre_phi_dy;
+    Vector<double> pre_phi_dz;
+
+    if(dim==2)
+    {
+      // set pre_pre_phi values
+      pre_pre_phi[0] = (quad_pt - supp_pts[0])*Gamma[0]; //lambda_0
+      pre_pre_phi[1] = (quad_pt - supp_pts[1])*Gamma[1]; //lambda_1
+      pre_pre_phi[2] = (quad_pt - supp_pts[0])*Gamma[2]; //lambda_2
+      pre_pre_phi[3] = (quad_pt - supp_pts[2])*Gamma[3]; //lambda_3
+      Assert(pre_pre_phi[0]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[1]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[2]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
+      pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
+      pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      AssertIsFinite(pre_pre_phi[6]);
+      AssertIsFinite(pre_pre_phi[7]);
+
+      pre_pre_phi_grad[0] = Gamma[0];
+      pre_pre_phi_grad[1] = Gamma[1];
+      pre_pre_phi_grad[2] = Gamma[2];
+      pre_pre_phi_grad[3] = Gamma[3];
+      pre_pre_phi_grad[4] = pre_pre_phi_grad[0] - pre_pre_phi_grad[1];
+      pre_pre_phi_grad[5] = pre_pre_phi_grad[2] - pre_pre_phi_grad[3];
+      pre_pre_phi_grad[6] = 
+      (pre_pre_phi_grad[4] - pre_pre_phi[6]*(pre_pre_phi_grad[0]+pre_pre_phi_grad[1]))/
+      (pre_pre_phi[0] + pre_pre_phi[1]);
+      pre_pre_phi_grad[7] = 
+      (pre_pre_phi_grad[5] - pre_pre_phi[7]*(pre_pre_phi_grad[2]+pre_pre_phi_grad[3]))/
+      (pre_pre_phi[2] + pre_pre_phi[3]);
+
+      pre_phi.reinit(4*fe_degree);
+      pre_phi_dx.reinit(4*fe_degree);
+      pre_phi_dy.reinit(4*fe_degree);
+
+      pre_phi[0] = pre_pre_phi[1]*pre_pre_phi[3]; //lambda_1*lambda_3
+      pre_phi[1] = pre_pre_phi[0]*pre_pre_phi[3]; //lambda_0*lambda_3
+      pre_phi[2] = pre_pre_phi[1]*pre_pre_phi[2]; //lambda_1*lambda_2
+      pre_phi[3] = pre_pre_phi[0]*pre_pre_phi[2]; //lambda_0*lambda_2      
+
+      for(unsigned int j=0; j<fe_degree-1;++j)
+      {
+        // -----------------------------------------------------------------
+        pre_phi[4+j] = pre_pre_phi[2]*pre_pre_phi[3]*std::pow(pre_pre_phi[5],j);
+
+        pre_phi[fe_degree+3+j] = 
+        pre_pre_phi[2]*pre_pre_phi[3]*((j==fe_degree-2)?pre_pre_phi[6]:pre_pre_phi[4])
+        *std::pow(pre_pre_phi[5],j);
+
+        pre_phi[2*fe_degree+2+j] = pre_pre_phi[0]*pre_pre_phi[1]*std::pow(pre_pre_phi[4],j);
+
+        pre_phi[3*fe_degree+1+j] = 
+        pre_pre_phi[0]*pre_pre_phi[1]*((j==fe_degree-2)?pre_pre_phi[7]:pre_pre_phi[5])
+        *std::pow(pre_pre_phi[4],j);
+        // -----------------------------------------------------------------
+        pre_phi_dx[4+j] = 
+        pre_pre_phi_grad[2][0]*pre_pre_phi[3]*std::pow(pre_pre_phi[5],j)
+        + pre_pre_phi[2]*pre_pre_phi_grad[3][0]*std::pow(pre_pre_phi[5],j)
+        + (j==0)?0.:j*pre_pre_phi[2]*pre_pre_phi[3]*std::pow(pre_pre_phi[5],j-1)*pre_pre_phi_grad[5][0];
+
+        pre_phi_dx[fe_degree+3+j] = 
+        pre_phi_dx[4+j]*((j==fe_degree-2)?pre_pre_phi[6]:pre_pre_phi[4])
+        + pre_phi[4+j]*((j==fe_degree-2)?pre_pre_phi_grad[6][0]:pre_pre_phi_grad[4][0]);
+
+        pre_phi_dx[2*fe_degree+2+j] = 
+        pre_pre_phi_grad[0][0]*pre_pre_phi[1]*std::pow(pre_pre_phi[4],j)
+        + pre_pre_phi[0]*pre_pre_phi_grad[1][0]*std::pow(pre_pre_phi[4],j)
+        + (j==0)?0.:j*pre_pre_phi[0]*pre_pre_phi[1]*std::pow(pre_pre_phi[4],j-1)*pre_pre_phi_grad[4][0];
+
+        pre_phi_dx[3*fe_degree+1+j] = 
+        pre_phi_dx[2*fe_degree+2+j]*((j==fe_degree-2)?pre_pre_phi[7]:pre_pre_phi[5])
+        + pre_phi[2*fe_degree+2+j]*((j==fe_degree-2)?pre_pre_phi_grad[7][0]:pre_pre_phi_grad[5][0]);
+        // -------------------------------------------------------------------
+        pre_phi_dy[4+j] = 
+        pre_pre_phi_grad[2][1]*pre_pre_phi[3]*std::pow(pre_pre_phi[5],j)
+        + pre_pre_phi[2]*pre_pre_phi_grad[3][1]*std::pow(pre_pre_phi[5],j)
+        + (j==0)?0.:j*pre_pre_phi[2]*pre_pre_phi[3]*std::pow(pre_pre_phi[5],j-1)*pre_pre_phi_grad[5][1];
+
+        pre_phi_dy[fe_degree+3+j] = 
+        pre_phi_dy[4+j]*((j==fe_degree-2)?pre_pre_phi[6]:pre_pre_phi[4])
+        + pre_phi[4+j]*((j==fe_degree-2)?pre_pre_phi_grad[6][1]:pre_pre_phi_grad[4][1]);
+
+        pre_phi_dy[2*fe_degree+2+j] = 
+        pre_pre_phi_grad[0][1]*pre_pre_phi[1]*std::pow(pre_pre_phi[4],j)
+        + pre_pre_phi[0]*pre_pre_phi_grad[1][1]*std::pow(pre_pre_phi[4],j)
+        + (j==0)?0.:j*pre_pre_phi[0]*pre_pre_phi[1]*std::pow(pre_pre_phi[4],j-1)*pre_pre_phi_grad[4][1];
+
+        pre_phi_dy[3*fe_degree+1+j] = 
+        pre_phi_dy[2*fe_degree+2+j]*((j==fe_degree-2)?pre_pre_phi[7]:pre_pre_phi[5])
+        + pre_phi[2*fe_degree+2+j]*((j==fe_degree-2)?pre_pre_phi_grad[7][1]:pre_pre_phi_grad[5][1]);
+      }
+
+    }
+
+    Vector<double> soln;
+    Vector<double> soln_dx;
+    Vector<double> soln_dy;
+    Vector<double> soln_dz;
+    double pre_phi_int=0.;
+    double pre_phi_int_dx=0.;
+    double pre_phi_int_dy=0.;
+    double pre_phi_int_dz=0.;
+
+    if(dim==2)
+    {
+      soln.reinit(4*fe_degree);
+      soln_dx.reinit(4*fe_degree);
+      soln_dy.reinit(4*fe_degree);
+      A.Tvmult(soln, pre_phi);
+      A.Tvmult(soln_dx, pre_phi_dx);
+      A.Tvmult(soln_dy, pre_phi_dy);
+
+      pre_phi_int = pre_pre_phi[0]*pre_pre_phi[1]
+      *pre_pre_phi[2]*pre_pre_phi[3];
+      // lambda_0*lambda_1*lambda_2*lambda_3
+
+      pre_phi_int_dx = 
+      pre_pre_phi_grad[0][0]*pre_pre_phi[1]
+      *pre_pre_phi[2]*pre_pre_phi[3]
+      + pre_pre_phi[0]*pre_pre_phi_grad[1][0]
+      *pre_pre_phi[2]*pre_pre_phi[3]
+      + pre_pre_phi[0]*pre_pre_phi[1]
+      *pre_pre_phi_grad[2][0]*pre_pre_phi[3]
+      + pre_pre_phi[0]*pre_pre_phi[1]
+      *pre_pre_phi[2]*pre_pre_phi_grad[3][0];
+
+      pre_phi_int_dy = 
+      pre_pre_phi_grad[0][1]*pre_pre_phi[1]
+      *pre_pre_phi[2]*pre_pre_phi[3]
+      + pre_pre_phi[0]*pre_pre_phi_grad[1][1]
+      *pre_pre_phi[2]*pre_pre_phi[3]
+      + pre_pre_phi[0]*pre_pre_phi[1]
+      *pre_pre_phi_grad[2][1]*pre_pre_phi[3]
+      + pre_pre_phi[0]*pre_pre_phi[1]
+      *pre_pre_phi[2]*pre_pre_phi_grad[3][1];
+    }
+
     for(unsigned int i=0; i<this->dofs_per_cell; ++i)
     {
-      
+      if(dim==2)
+      {
+         if(i<4*fe_degree)
+         {
+          //vertex and edge dofs
+          if (flags & update_values)
+            data.shape_values(i,k) = soln[i];
+
+          if (flags & update_gradients)
+          {
+            data.shape_gradients(i,k)[0] = soln_dx[i];
+            data.shape_gradients(i,k)[1] = soln_dy[i];
+          }
+         }
+         else
+         {
+          Assert(fe_degree>=4, ExcMessage("if r<4, should see no interior dof"));
+          Assert(i-4*fe_degree>=0, ExcMessage("if r<4, should see no interior dof"));
+          int p=0, q=0;
+
+          switch(i-4*fe_degree)
+          {
+            case 0:
+              p=0;q=0; break;
+            case 1:
+              p=1;q=0; break;
+            case 2:
+              p=0;q=1; break;
+            default:
+              Assert(false, ExcNotImplemented());
+          }
+
+          // interior dofs
+          if(flags & update_values)
+          {
+            data.shape_values(i,k) = pre_phi_int* std::pow(pre_pre_phi[4],p)
+            * std::pow(pre_pre_phi[5],q);
+          }
+          if (flags & update_gradients)
+          { 
+            data.shape_gradients(i,k)[0] = 
+            pre_phi_int_dx * std::pow(pre_pre_phi[4],p)
+            * std::pow(pre_pre_phi[5],q)
+            + pre_phi_int * ((p==0)?0: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][0])
+            * std::pow(pre_pre_phi[5],q)
+            + pre_phi_int * std::pow(pre_pre_phi[4],p)
+            * ((q==0)? 0: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][0]);
+
+            data.shape_gradients(i,k)[1] = 
+            pre_phi_int_dy * std::pow(pre_pre_phi[4],p)
+            * std::pow(pre_pre_phi[5],q)
+            + pre_phi_int * ((p==0)?0: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][1])
+            * std::pow(pre_pre_phi[5],q)
+            + pre_phi_int * std::pow(pre_pre_phi[4],p)
+            * ((q==0)? 0: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][1]);
+          }
+         }
+      } //end if dim==2 
+      else
+      {
+        Assert(false, ExcNotImplemented());
+      }
     }
+  }
 }
 
 // explicit instantiations
