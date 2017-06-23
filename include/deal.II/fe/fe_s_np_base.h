@@ -141,10 +141,37 @@ protected:
     public:
       InternalData(const unsigned int n_shape_functions);
 
-    std::vector<Point<spacedim> > mapping_support_points;
+      std::vector<Tensor<1,dim> > corner_derivatives;
+      std::vector<double> corner_values;
 
-    unsigned int n_shape_functions;
+      std::vector<Point<spacedim> > mapping_support_points;
+
+      unsigned int n_shape_functions;
+
+      Tensor<1,dim> corner_derivative (const unsigned int cn_nr,
+        const unsigned int shape_nr) const;
+
+      Tensor<1,dim> &corner_derivative (const unsigned int cn_nr,
+        const unsigned int shape_nr);
+
+      double corner_value (const unsigned int cn_nr,
+        const unsigned int shape_nr) const;
+
+      double &corner_value (const unsigned int cn_nr,
+        const unsigned int shape_nr);
+
   };
+
+  void compute_shapes (const std::vector<Point<dim> > &unit_points,
+                       InternalData &data) const;
+
+  virtual void compute_mapping_support_points(
+    const typename Triangulation<dim,spacedim>::cell_iterator &cell,
+    std::vector<Point<spacedim> > &a) const;
+
+
+  virtual void compute_shapes_virtual (const std::vector<Point<dim> > &unit_points,
+                                       InternalData &data) const;
 
   static const unsigned int n_shape_functions = GeometryInfo<dim>::vertices_per_cell;
 
@@ -152,6 +179,55 @@ private:
   mutable Threads::Mutex mutex;
 };
 
+
+
+template<class POLY, int dim, int spacedim>
+inline
+Tensor<1,dim>
+FE_S_NP_Base<POLY,dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr,
+  const unsigned int shape_nr) const
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_derivatives.size()));
+  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<class POLY, int dim, int spacedim>
+inline
+Tensor<1,dim> &
+FE_S_NP_Base<POLY,dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr,
+  const unsigned int shape_nr)
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_derivatives.size()));
+  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<class POLY, int dim, int spacedim>
+inline
+double
+FE_S_NP_Base<POLY,dim,spacedim>::InternalData::corner_value (const unsigned int cn_nr,
+  const unsigned int shape_nr) const
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_values.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_values.size()));
+  return corner_values [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<class POLY, int dim, int spacedim>
+inline
+double &
+FE_S_NP_Base<POLY,dim,spacedim>::InternalData::corner_value (const unsigned int cn_nr,
+  const unsigned int shape_nr)
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_values.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_values.size()));
+  return corner_values [cn_nr*n_shape_functions + shape_nr];
+}
 
 /*@}*/
 

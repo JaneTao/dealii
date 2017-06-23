@@ -1446,9 +1446,389 @@ FE_S_NP_Base<POLY,dim,spacedim>::get_data (
   const Mapping<dim,spacedim>    &mapping,
   const Quadrature<dim> &quadrature) const
 {
-  
+  InternalData *data = new InternalData(n_shape_functions);
+
+  data->update_once = update_once(update_flags);
+  data->update_each = update_each(update_flags);
+  data->update_flags = data->update_once | data->update_each;
+
+  const UpdateFlags flags(data->update_flags);
+  const unsigned int n_q_points = quadrature.size();  
+
+  data->corner_derivatives.resize(data->n_shape_functions * GeometryInfo<dim>::vertices_per_cell);
+  data->corner_values.resize(data->n_shape_functions * GeometryInfo<dim>::vertices_per_cell);
+  compute_shapes (quadrature.get_points(), *data);
+
+  return data;
 }
 
+template <class POLY, int dim, int spacedim>
+void
+FE_S_NP_Base<POLY,dim,spacedim>::compute_shapes (const std::vector<Point<dim> > &unit_points,
+                                         InternalData &data) const
+{
+    FE_S_NP_Base<POLY,dim,spacedim>::compute_shapes_virtual(unit_points, data);
+}
+
+namespace internal
+{
+  namespace FE_S_NP_Base
+  {
+    template <class POLY, int spacedim>
+    void
+    compute_shapes_virtual (const unsigned int            n_shape_functions,
+                            const std::vector<Point<1> > &unit_points,
+                            typename dealii::FE_S_NP_Base<POLY,1,spacedim>::InternalData &data)
+    {
+      Assert(false, ExcNotImplemented());
+    }
+
+    template <class POLY, int spacedim>
+    void
+    compute_shapes_virtual (const unsigned int            n_shape_functions,
+                            const std::vector<Point<2> > &unit_points,
+                            typename dealii::FE_S_NP_Base<POLY,2,spacedim>::InternalData &data)
+    {
+      (void)n_shape_functions;
+
+      for(unsigned int cr = 0 ; cr < 4 ; ++cr )
+        {
+          int x = cr % 2;
+          int y = cr / 2;
+
+          Assert(data.corner_values.size() == n_shape_functions * 4,
+            ExcInternalError());
+
+          data.corner_value(cr,0) = (1.-x)*(1.-y);
+          data.corner_value(cr,1) = x*(1.-y);
+          data.corner_value(cr,2) = (1.-x)*y;
+          data.corner_value(cr,3) = x*y;
+
+          Assert(data.corner_derivatives.size() == n_shape_functions * 4,
+            ExcInternalError());
+
+          data.corner_derivative(cr,0)[0] = (y-1.);
+          data.corner_derivative(cr,1)[0] = (1.-y);
+          data.corner_derivative(cr,2)[0] = -y;
+          data.corner_derivative(cr,3)[0] = y;
+
+          data.corner_derivative(cr,0)[1] = (x-1.);
+          data.corner_derivative(cr,1)[1] = -x;
+          data.corner_derivative(cr,2)[1] = (1.-x);
+          data.corner_derivative(cr,3)[1] = x;
+        }
+
+    } // compute_shapes_virtual 2D end
+
+    template <class POLY, int spacedim>
+    void
+    compute_shapes_virtual (const unsigned int            n_shape_functions,
+                            const std::vector<Point<3> > &unit_points,
+                            typename dealii::FE_S_NP_Base<POLY,3,spacedim>::InternalData &data)
+    {
+      Assert(false, ExcNotImplemented());
+    }
+
+  }
+}
+
+template <class POLY, int dim, int spacedim>
+void
+FE_S_NP_Base<POLY,dim,spacedim>::
+compute_shapes_virtual (const std::vector<Point<dim> > &unit_points,
+                        InternalData &data) const
+{
+  internal::FE_S_NP_Base::
+  compute_shapes_virtual<POLY,spacedim> (n_shape_functions, unit_points, data);
+}
+
+template <class POLY, int dim, int spacedim>
+void
+FE_S_NP_Base<POLY,dim,spacedim>::compute_mapping_support_points(
+  const typename Triangulation<dim,spacedim>::cell_iterator &cell,
+  std::vector<Point<spacedim> > &a) const
+{
+  a.resize(GeometryInfo<dim>::vertices_per_cell);
+
+  for (unsigned int i=0; i<GeometryInfo<dim>::vertices_per_cell; ++i)
+    a[i] = cell->vertex(i);
+}
+
+//---------------------------------------------------------------------------
+// Fill data of FEValues
+//---------------------------------------------------------------------------
+
+template <class POLY, int dim, int spacedim>
+void
+FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
+  const Mapping<dim,spacedim>                      &mapping,
+  const typename Triangulation<dim,spacedim>::cell_iterator &cell,
+  const Quadrature<dim>                            &quadrature,
+  typename Mapping<dim,spacedim>::InternalDataBase &mapping_data,
+  typename Mapping<dim,spacedim>::InternalDataBase &fedata,
+  FEValuesData<dim,spacedim>                       &data,
+  CellSimilarity::Similarity                  &cell_similarity) const
+{
+  Assert (dynamic_cast<InternalData *> (&fedata) != 0,
+          ExcInternalError());
+  InternalData &fe_data = static_cast<InternalData &> (fedata);
+
+  const UpdateFlags flags(fe_data.current_update_flags());
+
+  Assert (flags & update_quadrature_points, ExcInternalError());
+  const unsigned int n_q_points = data.quadrature_points.size();
+
+  unsigned int fe_degree = this->degree;
+  if(dim==2)
+  {
+    Assert(fe_degree>1, ExcMessage("2D non parametric serendipity only for degree>1"));
+  }else{
+    Assert(fe_degree>2, ExcMessage("3D non parametric serendipity only for degree>2"));
+  }
+
+  // 1) Set face normals
+  compute_mapping_support_points(cell, fe_data.mapping_support_points);
+  const Tensor<1,spacedim> *supp_pts = &fe_data.mapping_support_points[0];
+  std::vector<Tensor<1,dim> > Gamma;
+  Gamma.resize(GeometryInfo<dim>::faces_per_cell);
+
+  if(dim==2)
+  {
+    std::vector<Tensor<1, dim> >tangential;
+    tangential.resize(4);
+    for(unsigned int k = 0; k<n_shape_functions; ++k)
+      for(unsigned int d = 0; d<dim; ++d)
+      { // face 0: J * [0 -1]^T
+        tangential[0][d] += -1.*supp_pts[k][d]*fe_data.corner_derivative(0,k)[1];
+        // face 1: J * [0 1]^T
+        tangential[1][d] += supp_pts[k][d]*fe_data.corner_derivative(1,k)[1];
+        // face 2: J * [1 0]^T
+        tangential[2][d] += supp_pts[k][d]*fe_data.corner_derivative(0,k)[0];
+        // face 3: J * [-1 0]^T
+        tangential[3][d] += -1.*supp_pts[k][d]*fe_data.corner_derivative(2,k)[0];
+      }
+    for(unsigned int face_no=0 ; face_no<4; ++face_no)
+      cross_product(Gamma[face_no], tangential[face_no]);
+  } // end dim==2
+
+  // 2) Set A matrix
+  unsigned int size_A=0;
+  if(dim==2)
+    size_A = 4*fe_degree;
+  else if (dim==3)
+    size_A = 8+12*(fe_degree-1);
+
+  FullMatrix<double> A(size_A);
+  std::vector<double> pre_pre_phi;
+  std::vector<Tensor<1,dim> > pre_pre_phi_grad;
+
+  if(dim==2)
+  {
+    pre_pre_phi.resize(8);
+    unsigned int row_no = 0;
+    for(unsigned int vertex_no = 0; vertex_no<4; ++vertex_no, ++row_no)
+    {
+      // set vertex dofs
+      Point<dim> dof_pt;
+      dof_pt = supp_pts[vertex_no];
+      // set pre_pre_phi values
+      pre_pre_phi[0] = (dof_pt - supp_pts[0])*Gamma[0]; //lambda_0
+      pre_pre_phi[1] = (dof_pt - supp_pts[1])*Gamma[1]; //lambda_1
+      pre_pre_phi[2] = (dof_pt - supp_pts[0])*Gamma[2]; //lambda_2
+      pre_pre_phi[3] = (dof_pt - supp_pts[2])*Gamma[3]; //lambda_3
+      Assert(pre_pre_phi[0]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[1]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[2]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
+      pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
+      pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      AssertIsFinite(pre_pre_phi[6]);
+      AssertIsFinite(pre_pre_phi[7]);
+      // set matrix A
+      A[row_no][0] = pre_pre_phi[1]*pre_pre_phi[3]; //lambda_1*lambda_3
+      A[row_no][1] = pre_pre_phi[0]*pre_pre_phi[3]; //lambda_0*lambda_3
+      A[row_no][2] = pre_pre_phi[1]*pre_pre_phi[2]; //lambda_1*lambda_2
+      A[row_no][3] = pre_pre_phi[0]*pre_pre_phi[2]; //lambda_0*lambda_2
+    }
+
+    Assert(row_no==4, ExcMessage("row number not correct"));
+
+    for(unsigned int line_no=1; line_no<fe_degree; ++line_no, ++row_no)
+    {
+      // left line dofs
+      Point<dim> dof_pt;
+      dof_pt[0] = supp_pts[0][0]+(supp_pts[2][0]-supp_pts[0][0])*line_no/fe_degree;
+      dof_pt[1] = supp_pts[0][1]+(supp_pts[2][1]-supp_pts[0][1])*line_no/fe_degree;
+      // set pre_pre_phi values
+      pre_pre_phi[0] = (dof_pt - supp_pts[0])*Gamma[0]; //lambda_0
+      pre_pre_phi[1] = (dof_pt - supp_pts[1])*Gamma[1]; //lambda_1
+      pre_pre_phi[2] = (dof_pt - supp_pts[0])*Gamma[2]; //lambda_2
+      pre_pre_phi[3] = (dof_pt - supp_pts[2])*Gamma[3]; //lambda_3
+      Assert(pre_pre_phi[0]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[1]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[2]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
+      pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
+      pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      AssertIsFinite(pre_pre_phi[6]);
+      AssertIsFinite(pre_pre_phi[7]);
+
+      // set matrix A
+      A[row_no][0] = pre_pre_phi[1]*pre_pre_phi[3]; //lambda_1*lambda_3
+      A[row_no][1] = pre_pre_phi[0]*pre_pre_phi[3]; //lambda_0*lambda_3
+      A[row_no][2] = pre_pre_phi[1]*pre_pre_phi[2]; //lambda_1*lambda_2
+      A[row_no][3] = pre_pre_phi[0]*pre_pre_phi[2]; //lambda_0*lambda_2
+
+      for(unsigned int j=0; j< fe_degree-1; ++j)
+      {
+        A[row_no][4+j] = pre_pre_phi[2]*pre_pre_phi[3]*std::pow(pre_pre_phi[5],j);
+        A[row_no][fe_degree+3+j] = 
+        pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[4]*std::pow(pre_pre_phi[5],j);
+      }
+      A[row_no][2*fe_degree+1] = 
+        pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],j);
+    }
+
+    Assert(row_no==fe_degree+3, ExcMessage("row number not correct"));
+
+    for(unsigned int line_no=1; line_no<fe_degree; ++line_no, ++row_no)
+    {
+      // right line dofs
+      Point<dim> dof_pt;
+      dof_pt[0] = supp_pts[1][0]+(supp_pts[3][0]-supp_pts[1][0])*line_no/fe_degree;
+      dof_pt[1] = supp_pts[1][1]+(supp_pts[3][1]-supp_pts[1][1])*line_no/fe_degree;
+      // set pre_pre_phi values
+      pre_pre_phi[0] = (dof_pt - supp_pts[0])*Gamma[0]; //lambda_0
+      pre_pre_phi[1] = (dof_pt - supp_pts[1])*Gamma[1]; //lambda_1
+      pre_pre_phi[2] = (dof_pt - supp_pts[0])*Gamma[2]; //lambda_2
+      pre_pre_phi[3] = (dof_pt - supp_pts[2])*Gamma[3]; //lambda_3
+      Assert(pre_pre_phi[0]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[1]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[2]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
+      pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
+      pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      AssertIsFinite(pre_pre_phi[6]);
+      AssertIsFinite(pre_pre_phi[7]);
+
+      // set matrix A
+      A[row_no][0] = pre_pre_phi[1]*pre_pre_phi[3]; //lambda_1*lambda_3
+      A[row_no][1] = pre_pre_phi[0]*pre_pre_phi[3]; //lambda_0*lambda_3
+      A[row_no][2] = pre_pre_phi[1]*pre_pre_phi[2]; //lambda_1*lambda_2
+      A[row_no][3] = pre_pre_phi[0]*pre_pre_phi[2]; //lambda_0*lambda_2
+
+      for(unsigned int j=0; j< fe_degree-1; ++j)
+      {
+        A[row_no][4+j] = pre_pre_phi[2]*pre_pre_phi[3]*std::pow(pre_pre_phi[5],j);
+        A[row_no][fe_degree+3+j] = 
+        pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[4]*std::pow(pre_pre_phi[5],j);
+      }
+      A[row_no][2*fe_degree+1] = 
+        pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],j);
+    }
+
+    Assert(row_no==2*fe_degree+2, ExcMessage("row number not correct"));
+
+    for(unsigned int line_no=1; line_no<fe_degree; ++line_no, ++row_no)
+    {
+      // bottom line dofs
+      Point<dim> dof_pt;
+      dof_pt[0] = supp_pts[0][0]+(supp_pts[1][0]-supp_pts[0][0])*line_no/fe_degree;
+      dof_pt[1] = supp_pts[0][1]+(supp_pts[1][1]-supp_pts[0][1])*line_no/fe_degree;
+      // set pre_pre_phi values
+      pre_pre_phi[0] = (dof_pt - supp_pts[0])*Gamma[0]; //lambda_0
+      pre_pre_phi[1] = (dof_pt - supp_pts[1])*Gamma[1]; //lambda_1
+      pre_pre_phi[2] = (dof_pt - supp_pts[0])*Gamma[2]; //lambda_2
+      pre_pre_phi[3] = (dof_pt - supp_pts[2])*Gamma[3]; //lambda_3
+      Assert(pre_pre_phi[0]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[1]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[2]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
+      pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
+      pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      AssertIsFinite(pre_pre_phi[6]);
+      AssertIsFinite(pre_pre_phi[7]);
+
+      // set matrix A
+      A[row_no][0] = pre_pre_phi[1]*pre_pre_phi[3]; //lambda_1*lambda_3
+      A[row_no][1] = pre_pre_phi[0]*pre_pre_phi[3]; //lambda_0*lambda_3
+      A[row_no][2] = pre_pre_phi[1]*pre_pre_phi[2]; //lambda_1*lambda_2
+      A[row_no][3] = pre_pre_phi[0]*pre_pre_phi[2]; //lambda_0*lambda_2
+
+      for(unsigned int j=0; j< fe_degree-1; ++j)
+      {
+        A[row_no][2*fe_degree+2+j] = pre_pre_phi[0]*pre_pre_phi[1]*std::pow(pre_pre_phi[4],j);
+        A[row_no][3*fe_degree+1+j] = 
+        pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[5]*std::pow(pre_pre_phi[4],j);
+      }
+      A[row_no][4*fe_degree-1] = 
+        pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],j);
+    }
+
+    Assert(row_no==3*fe_degree+1, ExcMessage("row number not correct"));
+
+    for(unsigned int line_no=1; line_no<fe_degree; ++line_no, ++row_no)
+    {
+      // bottom line dofs
+      Point<dim> dof_pt;
+      dof_pt[0] = supp_pts[2][0]+(supp_pts[3][0]-supp_pts[2][0])*line_no/fe_degree;
+      dof_pt[1] = supp_pts[2][1]+(supp_pts[3][1]-supp_pts[2][1])*line_no/fe_degree;
+      // set pre_pre_phi values
+      pre_pre_phi[0] = (dof_pt - supp_pts[0])*Gamma[0]; //lambda_0
+      pre_pre_phi[1] = (dof_pt - supp_pts[1])*Gamma[1]; //lambda_1
+      pre_pre_phi[2] = (dof_pt - supp_pts[0])*Gamma[2]; //lambda_2
+      pre_pre_phi[3] = (dof_pt - supp_pts[2])*Gamma[3]; //lambda_3
+      Assert(pre_pre_phi[0]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[1]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[2]>=-1e-13, ExcMessage("dof point out of cell"));
+      Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
+      pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
+      pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3];); //R_H
+      AssertIsFinite(pre_pre_phi[6]);
+      AssertIsFinite(pre_pre_phi[7]);
+
+      // set matrix A
+      A[row_no][0] = pre_pre_phi[1]*pre_pre_phi[3]; //lambda_1*lambda_3
+      A[row_no][1] = pre_pre_phi[0]*pre_pre_phi[3]; //lambda_0*lambda_3
+      A[row_no][2] = pre_pre_phi[1]*pre_pre_phi[2]; //lambda_1*lambda_2
+      A[row_no][3] = pre_pre_phi[0]*pre_pre_phi[2]; //lambda_0*lambda_2
+
+      for(unsigned int j=0; j< fe_degree-1; ++j)
+      {
+        A[row_no][2*fe_degree+2+j] = pre_pre_phi[0]*pre_pre_phi[1]*std::pow(pre_pre_phi[4],j);
+        A[row_no][3*fe_degree+1+j] = 
+        pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[5]*std::pow(pre_pre_phi[4],j);
+      }
+      A[row_no][4*fe_degree-1] = 
+        pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],j);
+    }
+  } //end (dim==2)
+
+  // 3) invert A
+  { // note for square matrix if AB=I, then BA=I
+    LAPACKFullMatrix<double> A_inverse(A.m(), A.n());
+    ll_inverse = A;
+    ll_inverse.invert();
+    A = ll_inverse;
+  }
+
+  // 4) set values and grads for each quadrature points
+  for(unsigned int k=0; k<n_q_points; ++k)
+    for(unsigned int i=0; i<this->dofs_per_cell; ++i)
+    {
+      
+    }
+}
 
 // explicit instantiations
 #include "fe_s_np_base.inst"
