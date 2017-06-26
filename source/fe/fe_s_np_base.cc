@@ -2070,18 +2070,18 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
             data.shape_gradients[i][k][0] = 
             pre_phi_int_dx * std::pow(pre_pre_phi[4],p)
             * std::pow(pre_pre_phi[5],q)
-            + pre_phi_int * ((p==0)?0: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][0])
+            + pre_phi_int * ((p==0)?0.: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][0])
             * std::pow(pre_pre_phi[5],q)
             + pre_phi_int * std::pow(pre_pre_phi[4],p)
-            * ((q==0)? 0: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][0]);
+            * ((q==0)? 0.: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][0]);
 
             data.shape_gradients[i][k][1] = 
             pre_phi_int_dy * std::pow(pre_pre_phi[4],p)
             * std::pow(pre_pre_phi[5],q)
-            + pre_phi_int * ((p==0)?0: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][1])
+            + pre_phi_int * ((p==0)?0.: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][1])
             * std::pow(pre_pre_phi[5],q)
             + pre_phi_int * std::pow(pre_pre_phi[4],p)
-            * ((q==0)? 0: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][1]);
+            * ((q==0)? 0.: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][1]);
           }
          }
       } //end if dim==2 
@@ -2579,10 +2579,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
          else
          {
           Assert(fe_degree>=4, ExcMessage("if r<4, should see no interior dof"));
-          Assert(i-4*fe_degree>=0, ExcMessage("if r<4, should see no interior dof"));
+          Assert(i-(4*fe_degree)>=0, ExcMessage("if r<4, should see no interior dof"));
           int p=0, q=0;
 
-          switch(i-4*fe_degree)
+          switch(i-(4*fe_degree))
           {
             case 0:
               p=0;q=0; break;
@@ -2590,6 +2590,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
               p=1;q=0; break;
             case 2:
               p=0;q=1; break;
+              // add more cases for degree>5
             default:
               Assert(false, ExcNotImplemented());
           }
@@ -2597,7 +2598,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
           // interior dofs
           if(flags & update_values)
           {
-            data.shape_values(i,k) = pre_phi_int* std::pow(pre_pre_phi[4],p)
+            data.shape_values(i,k) = pre_phi_int * std::pow(pre_pre_phi[4],p)
             * std::pow(pre_pre_phi[5],q);
           }
           if (flags & update_gradients)
@@ -2605,18 +2606,18 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
             data.shape_gradients[i][k][0] = 
             pre_phi_int_dx * std::pow(pre_pre_phi[4],p)
             * std::pow(pre_pre_phi[5],q)
-            + pre_phi_int * ((p==0)?0: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][0])
+            + pre_phi_int * ((p==0)?0.: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][0])
             * std::pow(pre_pre_phi[5],q)
             + pre_phi_int * std::pow(pre_pre_phi[4],p)
-            * ((q==0)? 0: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][0]);
+            * ((q==0)? 0.: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][0]);
 
             data.shape_gradients[i][k][1] = 
             pre_phi_int_dy * std::pow(pre_pre_phi[4],p)
             * std::pow(pre_pre_phi[5],q)
-            + pre_phi_int * ((p==0)?0: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][1])
+            + pre_phi_int * ((p==0)?0.: p*std::pow(pre_pre_phi[4],p-1)*pre_pre_phi_grad[4][1])
             * std::pow(pre_pre_phi[5],q)
             + pre_phi_int * std::pow(pre_pre_phi[4],p)
-            * ((q==0)? 0: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][1]);
+            * ((q==0)? 0.: q*std::pow(pre_pre_phi[5],q-1)*pre_pre_phi_grad[5][1]);
           }
          }
       } //end if dim==2 
