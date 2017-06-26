@@ -13,7 +13,7 @@
 //
 // ---------------------------------------------------------------------
 
-
+// #include <deal.II/base/qprojector.h>
 #include <deal.II/base/quadrature.h>
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_iterator.h>
@@ -344,7 +344,7 @@ FE_DGPNonparametric<dim,spacedim>::fill_fe_face_values (
   const Mapping<dim,spacedim> &,
   const typename Triangulation<dim,spacedim>::cell_iterator &cell,
   const unsigned int,
-  const Quadrature<dim-1>&,
+  const Quadrature<dim-1> &,
   typename Mapping<dim,spacedim>::InternalDataBase &,
   typename Mapping<dim,spacedim>::InternalDataBase       &fedata,
   FEValuesData<dim,spacedim>                             &data) const
@@ -359,6 +359,13 @@ FE_DGPNonparametric<dim,spacedim>::fill_fe_face_values (
 
   const UpdateFlags flags(fe_data.update_once | fe_data.update_each);
   Assert (flags & update_quadrature_points, ExcInternalError());
+
+  // const typename QProjector<dim>::DataSetDescriptor offset
+  //   = QProjector<dim>::DataSetDescriptor::face (face,
+  //                                               cell->face_orientation(face),
+  //                                               cell->face_flip(face),
+  //                                               cell->face_rotation(face),
+  //                                               quadrature.size());
 
   const unsigned int n_q_points = data.quadrature_points.size();
 
