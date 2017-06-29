@@ -146,6 +146,9 @@ public:
       std::vector<Tensor<1,dim> > corner_derivatives;
       std::vector<double> corner_values;
 
+      std::vector<Tensor<1,dim> > center_derivatives;
+      std::vector<double> center_values;
+
       std::vector<Point<spacedim> > mapping_support_points;
 
       unsigned int n_shape_functions;
@@ -160,6 +163,18 @@ public:
         const unsigned int shape_nr) const;
 
       double &corner_value (const unsigned int cn_nr,
+        const unsigned int shape_nr);
+
+      Tensor<1,dim> center_derivative (const unsigned int cn_nr,
+        const unsigned int shape_nr) const;
+
+      Tensor<1,dim> &center_derivative (const unsigned int cn_nr,
+        const unsigned int shape_nr);
+
+      double center_value (const unsigned int cn_nr,
+        const unsigned int shape_nr) const;
+
+      double &center_value (const unsigned int cn_nr,
         const unsigned int shape_nr);
 
   };
@@ -223,6 +238,54 @@ template<class POLY, int dim, int spacedim>
 inline
 double &
 FE_S_NP_Base<POLY,dim,spacedim>::InternalData::corner_value (const unsigned int cn_nr,
+  const unsigned int shape_nr)
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_values.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_values.size()));
+  return corner_values [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<class POLY, int dim, int spacedim>
+inline
+Tensor<1,dim>
+FE_S_NP_Base<POLY,dim,spacedim>::InternalData::center_derivative (const unsigned int cn_nr,
+  const unsigned int shape_nr) const
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_derivatives.size()));
+  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<class POLY, int dim, int spacedim>
+inline
+Tensor<1,dim> &
+FE_S_NP_Base<POLY,dim,spacedim>::InternalData::center_derivative (const unsigned int cn_nr,
+  const unsigned int shape_nr)
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_derivatives.size()));
+  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<class POLY, int dim, int spacedim>
+inline
+double
+FE_S_NP_Base<POLY,dim,spacedim>::InternalData::center_value (const unsigned int cn_nr,
+  const unsigned int shape_nr) const
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_values.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_values.size()));
+  return corner_values [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<class POLY, int dim, int spacedim>
+inline
+double &
+FE_S_NP_Base<POLY,dim,spacedim>::InternalData::center_value (const unsigned int cn_nr,
   const unsigned int shape_nr)
 {
   Assert(cn_nr*n_shape_functions + shape_nr < corner_values.size(),
