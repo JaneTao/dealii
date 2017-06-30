@@ -252,10 +252,10 @@ Tensor<1,dim>
 FE_S_NP_Base<POLY,dim,spacedim>::InternalData::center_derivative (const unsigned int cn_nr,
   const unsigned int shape_nr) const
 {
-  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+  Assert(cn_nr*n_shape_functions + shape_nr < center_derivatives.size(),
          ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
-                       corner_derivatives.size()));
-  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+                       center_derivatives.size()));
+  return center_derivatives [cn_nr*n_shape_functions + shape_nr];
 }
 
 template<class POLY, int dim, int spacedim>
@@ -264,10 +264,10 @@ Tensor<1,dim> &
 FE_S_NP_Base<POLY,dim,spacedim>::InternalData::center_derivative (const unsigned int cn_nr,
   const unsigned int shape_nr)
 {
-  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+  Assert(cn_nr*n_shape_functions + shape_nr < center_derivatives.size(),
          ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
-                       corner_derivatives.size()));
-  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+                       center_derivatives.size()));
+  return center_derivatives [cn_nr*n_shape_functions + shape_nr];
 }
 
 template<class POLY, int dim, int spacedim>
@@ -276,10 +276,10 @@ double
 FE_S_NP_Base<POLY,dim,spacedim>::InternalData::center_value (const unsigned int cn_nr,
   const unsigned int shape_nr) const
 {
-  Assert(cn_nr*n_shape_functions + shape_nr < corner_values.size(),
+  Assert(cn_nr*n_shape_functions + shape_nr < center_values.size(),
          ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
-                       corner_values.size()));
-  return corner_values [cn_nr*n_shape_functions + shape_nr];
+                       center_values.size()));
+  return center_values [cn_nr*n_shape_functions + shape_nr];
 }
 
 template<class POLY, int dim, int spacedim>
@@ -288,10 +288,10 @@ double &
 FE_S_NP_Base<POLY,dim,spacedim>::InternalData::center_value (const unsigned int cn_nr,
   const unsigned int shape_nr)
 {
-  Assert(cn_nr*n_shape_functions + shape_nr < corner_values.size(),
+  Assert(cn_nr*n_shape_functions + shape_nr < center_values.size(),
          ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
-                       corner_values.size()));
-  return corner_values [cn_nr*n_shape_functions + shape_nr];
+                       center_values.size()));
+  return center_values [cn_nr*n_shape_functions + shape_nr];
 }
 
 /*@}*/
