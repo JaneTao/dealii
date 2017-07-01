@@ -1835,6 +1835,12 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
   std::vector<Tensor<1,dim> > pre_pre_phi_grad;
   const unsigned int r = fe_degree;
 
+  double alpha_x, beta_x, alpha_y, beta_y, alpha_z, beta_z;
+
+  alpha_x = 0.0; beta_x = 1.0;
+  alpha_y = 0.0; beta_y = 1.0;
+  alpha_z = 0.0; beta_z = 1.0;
+
   if(dim==2)
   {
     pre_pre_phi.resize(8);
@@ -2117,14 +2123,16 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         A[row_no][8] = temp;
         A[row_no][7+r] = temp*pre_pre_phi[6];
         A[row_no][4+4*r] = temp*pre_pre_phi[8];
-        A[row_no][3+5*r] = temp*pre_pre_phi[6]*pre_pre_phi[11];
+        // A[row_no][3+5*r] = temp*(alpha_y*pre_pre_phi[8]*pre_pre_phi[9]+beta_y*pre_pre_phi[6]*pre_pre_phi[11]);
+        A[row_no][3+5*r] = temp*(pre_pre_phi[9]*pre_pre_phi[11]);
+
 
         for(unsigned int j=1; j<r-2; ++j)
         {
           A[row_no][8+j] = temp*std::pow(pre_pre_phi[7],j);
           A[row_no][7+r+j] = temp*pre_pre_phi[6]*std::pow(pre_pre_phi[7],j);
           A[row_no][4+4*r+j] = temp*pre_pre_phi[8]*std::pow(pre_pre_phi[7],j);
-          A[row_no][3+5*r+j] = temp*pre_pre_phi[6]*pre_pre_phi[11]*std::pow(pre_pre_phi[7],j);          
+          A[row_no][3+5*r+j] = temp*pre_pre_phi[8]*pre_pre_phi[9]*std::pow(pre_pre_phi[7],j);          
         }
 
         A[row_no][8+r-2] = temp*std::pow(pre_pre_phi[7],r-2);
@@ -2149,14 +2157,15 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         A[row_no][6+2*r] = temp;
         A[row_no][5+3*r] = temp*pre_pre_phi[7];
         A[row_no][2+6*r] = temp*pre_pre_phi[8];
-        A[row_no][1+7*r] = temp*pre_pre_phi[8]*pre_pre_phi[10];
+        // A[row_no][1+7*r] = temp*(alpha_x*pre_pre_phi[7]*pre_pre_phi[11]+beta_x*pre_pre_phi[8]*pre_pre_phi[10]);
+        A[row_no][1+7*r] = temp*(pre_pre_phi[10]*pre_pre_phi[11]);
 
         for(unsigned int j=1; j<r-2; ++j)
         {
           A[row_no][6+2*r+j] = temp*std::pow(pre_pre_phi[6],j);
           A[row_no][5+3*r+j] = temp*pre_pre_phi[7]*std::pow(pre_pre_phi[6],j);
           A[row_no][2+6*r+j] = temp*pre_pre_phi[8]*std::pow(pre_pre_phi[6],j);
-          A[row_no][1+7*r+j] = temp*pre_pre_phi[8]*pre_pre_phi[10]*std::pow(pre_pre_phi[6],j);          
+          A[row_no][1+7*r+j] = temp*pre_pre_phi[7]*pre_pre_phi[11]*std::pow(pre_pre_phi[6],j);          
         }
 
         A[row_no][6+2*r+r-2] = temp*std::pow(pre_pre_phi[6],r-2);
@@ -2182,14 +2191,16 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         A[row_no][8*r] = temp;
         A[row_no][9*r-1] = temp*pre_pre_phi[6];
         A[row_no][10*r-2] = temp*pre_pre_phi[7];
-        A[row_no][11*r-3] = temp*pre_pre_phi[6]*pre_pre_phi[10];
+        // A[row_no][11*r-3] = temp*(alpha_z*pre_pre_phi[7]*pre_pre_phi[9]+beta_z*pre_pre_phi[6]*pre_pre_phi[10]);
+        A[row_no][11*r-3] = temp*(pre_pre_phi[9]*pre_pre_phi[10]);
+
 
         for(unsigned int j=1; j<r-2; ++j)
         {
           A[row_no][8*r+j] = temp*std::pow(pre_pre_phi[8],j);
           A[row_no][9*r-1+j] = temp*pre_pre_phi[6]*std::pow(pre_pre_phi[8],j);
           A[row_no][10*r-2+j] = temp*pre_pre_phi[7]*std::pow(pre_pre_phi[8],j);
-          A[row_no][11*r-3+j] = temp*pre_pre_phi[6]*pre_pre_phi[10]*std::pow(pre_pre_phi[8],j);
+          A[row_no][11*r-3+j] = temp*pre_pre_phi[7]*pre_pre_phi[9]*std::pow(pre_pre_phi[8],j);
         }
 
         A[row_no][8*r+r-2] = temp*std::pow(pre_pre_phi[8],r-2);
@@ -2464,6 +2475,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
  
       // y dir
 
+      Tensor<1,dim> ytemp;
+      double yvalue;
+
       // R_x
       pre_pre_phi[9] = (B[0][4]*pre_pre_phi[0] - B[1][4]*pre_pre_phi[1])
       /(B[0][4]*pre_pre_phi[0] + B[1][4]*pre_pre_phi[1]);
@@ -2490,7 +2504,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_phi[8] = yBubble;
       pre_phi[7+r] = yBubble*pre_pre_phi[6];
       pre_phi[4+4*r] = yBubble*pre_pre_phi[8];
-      pre_phi[3+5*r] = yBubble*pre_pre_phi[6]*pre_pre_phi[11];
+      // pre_phi[3+5*r] = yBubble*(alpha_y*pre_pre_phi[8]*pre_pre_phi[9]+beta_y*pre_pre_phi[6]*pre_pre_phi[11]);
+      pre_phi[3+5*r] = yBubble*(pre_pre_phi[9]*pre_pre_phi[11]);
+      
 
       pre_phi_dx[8] = dyBubble[0]; 
       pre_phi_dy[8] = dyBubble[1]; 
@@ -2501,19 +2517,23 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_phi_dx[4+4*r] = dyBubble[0]*pre_pre_phi[8] + yBubble * pre_pre_phi_grad[8][0];
       pre_phi_dy[4+4*r] = dyBubble[1]*pre_pre_phi[8] + yBubble * pre_pre_phi_grad[8][1];
       pre_phi_dz[4+4*r] = dyBubble[2]*pre_pre_phi[8] + yBubble * pre_pre_phi_grad[8][2];
-      pre_phi_dx[3+5*r] = pre_phi_dx[7+r]*pre_pre_phi[11] + pre_phi[7+r]*pre_pre_phi_grad[11][0];
-      pre_phi_dy[3+5*r] = pre_phi_dy[7+r]*pre_pre_phi[11] + pre_phi[7+r]*pre_pre_phi_grad[11][1];
-      pre_phi_dz[3+5*r] = pre_phi_dz[7+r]*pre_pre_phi[11] + pre_phi[7+r]*pre_pre_phi_grad[11][2];
 
-      Tensor<1,dim> ytemp;
-      double yvalue;
+      // yvalue = alpha_y*pre_pre_phi[8]*pre_pre_phi[9]+beta_y*pre_pre_phi[6]*pre_pre_phi[11];
+      // ytemp = alpha_y*pre_pre_phi_grad[8]*pre_pre_phi[9]+beta_y*pre_pre_phi_grad[6]*pre_pre_phi[11]
+      // + alpha_y*pre_pre_phi[8]*pre_pre_phi_grad[9]+beta_y*pre_pre_phi[6]*pre_pre_phi_grad[11];
+      yvalue = pre_pre_phi[9]*pre_pre_phi[11];
+      ytemp = pre_pre_phi_grad[9]*pre_pre_phi[11]+pre_pre_phi[9]*pre_pre_phi_grad[11];
+
+      pre_phi_dx[3+5*r] = dyBubble[0]*yvalue + yBubble*ytemp[0];
+      pre_phi_dy[3+5*r] = dyBubble[1]*yvalue + yBubble*ytemp[1];
+      pre_phi_dz[3+5*r] = dyBubble[2]*yvalue + yBubble*ytemp[2];
 
       for(unsigned int j=1; j<r-2; ++j)
       {
         pre_phi[8+j] = yBubble*std::pow(pre_pre_phi[7],j);
         pre_phi[7+r+j] = yBubble*pre_pre_phi[6]*std::pow(pre_pre_phi[7],j);
         pre_phi[4+4*r+j] = yBubble*pre_pre_phi[8]*std::pow(pre_pre_phi[7],j);
-        pre_phi[3+5*r+j] = yBubble*pre_pre_phi[6]*pre_pre_phi[11]*std::pow(pre_pre_phi[7],j);     
+        pre_phi[3+5*r+j] = yBubble*pre_pre_phi[8]*pre_pre_phi[9]*std::pow(pre_pre_phi[7],j);     
 
         ytemp = j*std::pow(pre_pre_phi[7],j-1)*pre_pre_phi_grad[7];
         yvalue = std::pow(pre_pre_phi[7],j);
@@ -2535,10 +2555,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         pre_phi_dy[4+4*r+j] = dyBubble[1]*yvalue+yBubble*ytemp[1];
         pre_phi_dz[4+4*r+j] = dyBubble[2]*yvalue+yBubble*ytemp[2];                
 
-        ytemp = pre_pre_phi[6]*pre_pre_phi[11]*j*std::pow(pre_pre_phi[7],j-1)*pre_pre_phi_grad[7]
-        + pre_pre_phi_grad[6]*pre_pre_phi[11]*std::pow(pre_pre_phi[7],j)
-        + pre_pre_phi[6]*pre_pre_phi_grad[11]*std::pow(pre_pre_phi[7],j); 
-        yvalue = pre_pre_phi[6]*pre_pre_phi[11]*std::pow(pre_pre_phi[7],j);
+        ytemp = pre_pre_phi[8]*pre_pre_phi[9]*j*std::pow(pre_pre_phi[7],j-1)*pre_pre_phi_grad[7]
+        + pre_pre_phi_grad[8]*pre_pre_phi[9]*std::pow(pre_pre_phi[7],j)
+        + pre_pre_phi[8]*pre_pre_phi_grad[9]*std::pow(pre_pre_phi[7],j); 
+        yvalue = pre_pre_phi[8]*pre_pre_phi[9]*std::pow(pre_pre_phi[7],j);
         pre_phi_dx[3+5*r+j] = dyBubble[0]*yvalue+yBubble*ytemp[0];
         pre_phi_dy[3+5*r+j] = dyBubble[1]*yvalue+yBubble*ytemp[1];
         pre_phi_dz[3+5*r+j] = dyBubble[2]*yvalue+yBubble*ytemp[2];                
@@ -2608,7 +2628,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_phi[6+2*r] = xBubble;
       pre_phi[5+3*r] = xBubble*pre_pre_phi[7];
       pre_phi[2+6*r] = xBubble*pre_pre_phi[8];
-      pre_phi[1+7*r] = xBubble*pre_pre_phi[8]*pre_pre_phi[10];
+      // pre_phi[1+7*r] = xBubble*(alpha_x*pre_pre_phi[7]*pre_pre_phi[11]+beta_x*pre_pre_phi[8]*pre_pre_phi[10]);
+      pre_phi[1+7*r] = xBubble*(pre_pre_phi[10]*pre_pre_phi[11]);
+
 
       pre_phi_dx[6+2*r] = dxBubble[0];
       pre_phi_dy[6+2*r] = dxBubble[1];
@@ -2618,17 +2640,25 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_phi_dz[5+3*r] = dxBubble[2]*pre_pre_phi[7]+xBubble*pre_pre_phi_grad[7][2];
       pre_phi_dx[2+6*r] = dxBubble[0]*pre_pre_phi[8]+xBubble*pre_pre_phi_grad[8][0];     
       pre_phi_dy[2+6*r] = dxBubble[1]*pre_pre_phi[8]+xBubble*pre_pre_phi_grad[8][1];     
-      pre_phi_dz[2+6*r] = dxBubble[2]*pre_pre_phi[8]+xBubble*pre_pre_phi_grad[8][2];     
-      pre_phi_dx[1+7*r] = pre_phi_dx[2+6*r]*pre_pre_phi[10]+pre_phi[2+6*r]*pre_pre_phi_grad[10][0];
-      pre_phi_dy[1+7*r] = pre_phi_dy[2+6*r]*pre_pre_phi[10]+pre_phi[2+6*r]*pre_pre_phi_grad[10][1];
-      pre_phi_dz[1+7*r] = pre_phi_dz[2+6*r]*pre_pre_phi[10]+pre_phi[2+6*r]*pre_pre_phi_grad[10][2];
+      pre_phi_dz[2+6*r] = dxBubble[2]*pre_pre_phi[8]+xBubble*pre_pre_phi_grad[8][2];   
+
+      // xvalue = alpha_x*pre_pre_phi[7]*pre_pre_phi[11]+beta_x*pre_pre_phi[8]*pre_pre_phi[10];
+      // xtemp = alpha_x*pre_pre_phi_grad[7]*pre_pre_phi[11]+beta_x*pre_pre_phi_grad[8]*pre_pre_phi[10]
+      // + alpha_x*pre_pre_phi[7]*pre_pre_phi_grad[11]+beta_x*pre_pre_phi[8]*pre_pre_phi_grad[10];
+
+      xvalue = pre_pre_phi[10]*pre_pre_phi[11];
+      xtemp = pre_pre_phi_grad[10]*pre_pre_phi[11]+pre_pre_phi[10]*pre_pre_phi_grad[11];
+
+      pre_phi_dx[1+7*r] = dxBubble[0]*xvalue + xBubble*xtemp[0];
+      pre_phi_dy[1+7*r] = dxBubble[1]*xvalue + xBubble*xtemp[1];
+      pre_phi_dz[1+7*r] = dxBubble[2]*xvalue + xBubble*xtemp[2];
 
       for(unsigned int j=1; j<r-2; ++j)
       {
         pre_phi[6+2*r+j] = xBubble*std::pow(pre_pre_phi[6],j);
         pre_phi[5+3*r+j] = xBubble*pre_pre_phi[7]*std::pow(pre_pre_phi[6],j);
         pre_phi[2+6*r+j] = xBubble*pre_pre_phi[8]*std::pow(pre_pre_phi[6],j);
-        pre_phi[1+7*r+j] = xBubble*pre_pre_phi[8]*pre_pre_phi[10]*std::pow(pre_pre_phi[6],j);
+        pre_phi[1+7*r+j] = xBubble*pre_pre_phi[7]*pre_pre_phi[11]*std::pow(pre_pre_phi[6],j);
 
         xvalue = std::pow(pre_pre_phi[6],j);
         xtemp = j*std::pow(pre_pre_phi[6],j-1)*pre_pre_phi_grad[6];
@@ -2650,10 +2680,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         pre_phi_dy[2+6*r+j] = dxBubble[1]*xvalue+xBubble*xtemp[1];        
         pre_phi_dz[2+6*r+j] = dxBubble[2]*xvalue+xBubble*xtemp[2];
 
-        xvalue = pre_pre_phi[8]*pre_pre_phi[10]*std::pow(pre_pre_phi[6],j);
-        xtemp = pre_pre_phi[8]*pre_pre_phi[10]*j*std::pow(pre_pre_phi[6],j-1)*pre_pre_phi_grad[6]
-        + pre_pre_phi_grad[8]*pre_pre_phi[10]*std::pow(pre_pre_phi[6],j)
-        + pre_pre_phi[8]*pre_pre_phi_grad[10]*std::pow(pre_pre_phi[6],j);
+        xvalue = pre_pre_phi[7]*pre_pre_phi[11]*std::pow(pre_pre_phi[6],j);
+        xtemp = pre_pre_phi[7]*pre_pre_phi[11]*j*std::pow(pre_pre_phi[6],j-1)*pre_pre_phi_grad[6]
+        + pre_pre_phi_grad[7]*pre_pre_phi[11]*std::pow(pre_pre_phi[6],j)
+        + pre_pre_phi[7]*pre_pre_phi_grad[11]*std::pow(pre_pre_phi[6],j);
         pre_phi_dx[1+7*r+j] = dxBubble[0]*xvalue+xBubble*xtemp[0];
         pre_phi_dy[1+7*r+j] = dxBubble[1]*xvalue+xBubble*xtemp[1];
         pre_phi_dz[1+7*r+j] = dxBubble[2]*xvalue+xBubble*xtemp[2];
@@ -2723,7 +2753,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_phi[8*r] = zBubble;
       pre_phi[9*r-1] = zBubble*pre_pre_phi[6];
       pre_phi[10*r-2] = zBubble*pre_pre_phi[7];
-      pre_phi[11*r-3] = zBubble*pre_pre_phi[6]*pre_pre_phi[10];
+      // pre_phi[11*r-3] = zBubble*(alpha_z*pre_pre_phi[7]*pre_pre_phi[9]+beta_z*pre_pre_phi[6]*pre_pre_phi[10]);
+      pre_phi[11*r-3] = zBubble*(pre_pre_phi[9]*pre_pre_phi[10]);
+
 
       pre_phi_dx[8*r] = dzBubble[0];
       pre_phi_dy[8*r] = dzBubble[1];
@@ -2734,16 +2766,24 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_phi_dx[10*r-2] = dzBubble[0]*pre_pre_phi[7]+zBubble*pre_pre_phi_grad[7][0];
       pre_phi_dy[10*r-2] = dzBubble[1]*pre_pre_phi[7]+zBubble*pre_pre_phi_grad[7][1];
       pre_phi_dz[10*r-2] = dzBubble[2]*pre_pre_phi[7]+zBubble*pre_pre_phi_grad[7][2];
-      pre_phi_dx[11*r-3] = pre_phi_dx[9*r-1]*pre_pre_phi[10]+pre_phi[9*r-1]*pre_pre_phi_grad[10][0];
-      pre_phi_dy[11*r-3] = pre_phi_dy[9*r-1]*pre_pre_phi[10]+pre_phi[9*r-1]*pre_pre_phi_grad[10][1];
-      pre_phi_dz[11*r-3] = pre_phi_dz[9*r-1]*pre_pre_phi[10]+pre_phi[9*r-1]*pre_pre_phi_grad[10][2];
+
+      // zvalue = (alpha_z*pre_pre_phi[7]*pre_pre_phi[9]+beta_z*pre_pre_phi[6]*pre_pre_phi[10]);
+      // ztemp = (alpha_z*pre_pre_phi_grad[7]*pre_pre_phi[9]+beta_z*pre_pre_phi_grad[6]*pre_pre_phi[10])
+      // + (alpha_z*pre_pre_phi[7]*pre_pre_phi_grad[9]+beta_z*pre_pre_phi[6]*pre_pre_phi_grad[10]);
+
+      zvalue = (pre_pre_phi[9]*pre_pre_phi[10]);
+      ztemp = pre_pre_phi_grad[9]*pre_pre_phi[10]+pre_pre_phi[9]*pre_pre_phi_grad[10];
+
+      pre_phi_dx[11*r-3] = dzBubble[0]*zvalue+zBubble*ztemp[0];
+      pre_phi_dy[11*r-3] = dzBubble[1]*zvalue+zBubble*ztemp[1];
+      pre_phi_dz[11*r-3] = dzBubble[2]*zvalue+zBubble*ztemp[2];
 
       for(unsigned int j=1; j<r-2; ++j)
       {
         pre_phi[8*r+j] = zBubble*std::pow(pre_pre_phi[8],j);
         pre_phi[9*r-1+j] = zBubble*pre_pre_phi[6]*std::pow(pre_pre_phi[8],j);
         pre_phi[10*r-2+j] = zBubble*pre_pre_phi[7]*std::pow(pre_pre_phi[8],j);
-        pre_phi[11*r-3+j] = zBubble*pre_pre_phi[6]*pre_pre_phi[10]*std::pow(pre_pre_phi[8],j);
+        pre_phi[11*r-3+j] = zBubble*pre_pre_phi[7]*pre_pre_phi[9]*std::pow(pre_pre_phi[8],j);
 
         zvalue = std::pow(pre_pre_phi[8],j);
         ztemp = j*std::pow(pre_pre_phi[8],j-1)*pre_pre_phi_grad[8];
@@ -2765,10 +2805,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
         pre_phi_dy[10*r-2+j] = dzBubble[1]*zvalue+zBubble*ztemp[1];
         pre_phi_dz[10*r-2+j] = dzBubble[2]*zvalue+zBubble*ztemp[2];
 
-        zvalue = pre_pre_phi[6]*pre_pre_phi[10]*std::pow(pre_pre_phi[8],j);
-        ztemp = pre_pre_phi[6]*pre_pre_phi[10]*j*std::pow(pre_pre_phi[8],j-1)*pre_pre_phi_grad[8]
-        + pre_pre_phi_grad[6]*pre_pre_phi[10]*std::pow(pre_pre_phi[8],j)
-        + pre_pre_phi[6]*pre_pre_phi_grad[10]*std::pow(pre_pre_phi[8],j);
+        zvalue = pre_pre_phi[7]*pre_pre_phi[9]*std::pow(pre_pre_phi[8],j);
+        ztemp = pre_pre_phi[7]*pre_pre_phi[9]*j*std::pow(pre_pre_phi[8],j-1)*pre_pre_phi_grad[8]
+        + pre_pre_phi_grad[7]*pre_pre_phi[9]*std::pow(pre_pre_phi[8],j)
+        + pre_pre_phi[7]*pre_pre_phi_grad[9]*std::pow(pre_pre_phi[8],j);
         pre_phi_dx[11*r-3+j] = dzBubble[0]*zvalue+zBubble*ztemp[0];
         pre_phi_dy[11*r-3+j] = dzBubble[1]*zvalue+zBubble*ztemp[1];
         pre_phi_dz[11*r-3+j] = dzBubble[2]*zvalue+zBubble*ztemp[2];
@@ -2971,7 +3011,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
   typename Mapping<dim,spacedim>::InternalDataBase &fedata,
   FEValuesData<dim,spacedim>                       &data) const
 {
-  
+
   Assert (dynamic_cast<InternalData *> (&fedata) != 0,
           ExcInternalError());
   InternalData &fe_data = static_cast<InternalData &> (fedata);
@@ -3129,6 +3169,12 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
   std::vector<double> pre_pre_phi;
   std::vector<Tensor<1,dim> > pre_pre_phi_grad;
   const unsigned int r = fe_degree;
+
+  double alpha_x, beta_x, alpha_y, beta_y, alpha_z, beta_z;
+
+  alpha_x = 0.0; beta_x = 1.0;
+  alpha_y = 0.0; beta_y = 1.0;
+  alpha_z = 0.0; beta_z = 1.0;
 
   if(dim==2)
   {
@@ -3412,14 +3458,16 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
         A[row_no][8] = temp;
         A[row_no][7+r] = temp*pre_pre_phi[6];
         A[row_no][4+4*r] = temp*pre_pre_phi[8];
-        A[row_no][3+5*r] = temp*pre_pre_phi[6]*pre_pre_phi[11];
+        // A[row_no][3+5*r] = temp*(alpha_y*pre_pre_phi[8]*pre_pre_phi[9]+beta_y*pre_pre_phi[6]*pre_pre_phi[11]);
+        A[row_no][3+5*r] = temp*(pre_pre_phi[9]*pre_pre_phi[11]);
+
 
         for(unsigned int j=1; j<r-2; ++j)
         {
           A[row_no][8+j] = temp*std::pow(pre_pre_phi[7],j);
           A[row_no][7+r+j] = temp*pre_pre_phi[6]*std::pow(pre_pre_phi[7],j);
           A[row_no][4+4*r+j] = temp*pre_pre_phi[8]*std::pow(pre_pre_phi[7],j);
-          A[row_no][3+5*r+j] = temp*pre_pre_phi[6]*pre_pre_phi[11]*std::pow(pre_pre_phi[7],j);          
+          A[row_no][3+5*r+j] = temp*pre_pre_phi[8]*pre_pre_phi[9]*std::pow(pre_pre_phi[7],j);          
         }
 
         A[row_no][8+r-2] = temp*std::pow(pre_pre_phi[7],r-2);
@@ -3444,14 +3492,15 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
         A[row_no][6+2*r] = temp;
         A[row_no][5+3*r] = temp*pre_pre_phi[7];
         A[row_no][2+6*r] = temp*pre_pre_phi[8];
-        A[row_no][1+7*r] = temp*pre_pre_phi[8]*pre_pre_phi[10];
+        // A[row_no][1+7*r] = temp*(alpha_x*pre_pre_phi[7]*pre_pre_phi[11]+beta_x*pre_pre_phi[8]*pre_pre_phi[10]);
+        A[row_no][1+7*r] = temp*(pre_pre_phi[10]*pre_pre_phi[11]);
 
         for(unsigned int j=1; j<r-2; ++j)
         {
           A[row_no][6+2*r+j] = temp*std::pow(pre_pre_phi[6],j);
           A[row_no][5+3*r+j] = temp*pre_pre_phi[7]*std::pow(pre_pre_phi[6],j);
           A[row_no][2+6*r+j] = temp*pre_pre_phi[8]*std::pow(pre_pre_phi[6],j);
-          A[row_no][1+7*r+j] = temp*pre_pre_phi[8]*pre_pre_phi[10]*std::pow(pre_pre_phi[6],j);          
+          A[row_no][1+7*r+j] = temp*pre_pre_phi[7]*pre_pre_phi[11]*std::pow(pre_pre_phi[6],j);          
         }
 
         A[row_no][6+2*r+r-2] = temp*std::pow(pre_pre_phi[6],r-2);
@@ -3477,14 +3526,16 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
         A[row_no][8*r] = temp;
         A[row_no][9*r-1] = temp*pre_pre_phi[6];
         A[row_no][10*r-2] = temp*pre_pre_phi[7];
-        A[row_no][11*r-3] = temp*pre_pre_phi[6]*pre_pre_phi[10];
+        // A[row_no][11*r-3] = temp*(alpha_z*pre_pre_phi[7]*pre_pre_phi[9]+beta_z*pre_pre_phi[6]*pre_pre_phi[10]);
+        A[row_no][11*r-3] = temp*(pre_pre_phi[9]*pre_pre_phi[10]);
+
 
         for(unsigned int j=1; j<r-2; ++j)
         {
           A[row_no][8*r+j] = temp*std::pow(pre_pre_phi[8],j);
           A[row_no][9*r-1+j] = temp*pre_pre_phi[6]*std::pow(pre_pre_phi[8],j);
           A[row_no][10*r-2+j] = temp*pre_pre_phi[7]*std::pow(pre_pre_phi[8],j);
-          A[row_no][11*r-3+j] = temp*pre_pre_phi[6]*pre_pre_phi[10]*std::pow(pre_pre_phi[8],j);
+          A[row_no][11*r-3+j] = temp*pre_pre_phi[7]*pre_pre_phi[9]*std::pow(pre_pre_phi[8],j);
         }
 
         A[row_no][8*r+r-2] = temp*std::pow(pre_pre_phi[8],r-2);
@@ -3759,6 +3810,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
  
       // y dir
 
+      Tensor<1,dim> ytemp;
+      double yvalue;
+
       // R_x
       pre_pre_phi[9] = (B[0][4]*pre_pre_phi[0] - B[1][4]*pre_pre_phi[1])
       /(B[0][4]*pre_pre_phi[0] + B[1][4]*pre_pre_phi[1]);
@@ -3785,7 +3839,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       pre_phi[8] = yBubble;
       pre_phi[7+r] = yBubble*pre_pre_phi[6];
       pre_phi[4+4*r] = yBubble*pre_pre_phi[8];
-      pre_phi[3+5*r] = yBubble*pre_pre_phi[6]*pre_pre_phi[11];
+      // pre_phi[3+5*r] = yBubble*(alpha_y*pre_pre_phi[8]*pre_pre_phi[9]+beta_y*pre_pre_phi[6]*pre_pre_phi[11]);
+      pre_phi[3+5*r] = yBubble*(pre_pre_phi[9]*pre_pre_phi[11]);
+      
 
       pre_phi_dx[8] = dyBubble[0]; 
       pre_phi_dy[8] = dyBubble[1]; 
@@ -3796,19 +3852,23 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       pre_phi_dx[4+4*r] = dyBubble[0]*pre_pre_phi[8] + yBubble * pre_pre_phi_grad[8][0];
       pre_phi_dy[4+4*r] = dyBubble[1]*pre_pre_phi[8] + yBubble * pre_pre_phi_grad[8][1];
       pre_phi_dz[4+4*r] = dyBubble[2]*pre_pre_phi[8] + yBubble * pre_pre_phi_grad[8][2];
-      pre_phi_dx[3+5*r] = pre_phi_dx[7+r]*pre_pre_phi[11] + pre_phi[7+r]*pre_pre_phi_grad[11][0];
-      pre_phi_dy[3+5*r] = pre_phi_dy[7+r]*pre_pre_phi[11] + pre_phi[7+r]*pre_pre_phi_grad[11][1];
-      pre_phi_dz[3+5*r] = pre_phi_dz[7+r]*pre_pre_phi[11] + pre_phi[7+r]*pre_pre_phi_grad[11][2];
 
-      Tensor<1,dim> ytemp;
-      double yvalue;
+      // yvalue = alpha_y*pre_pre_phi[8]*pre_pre_phi[9]+beta_y*pre_pre_phi[6]*pre_pre_phi[11];
+      // ytemp = alpha_y*pre_pre_phi_grad[8]*pre_pre_phi[9]+beta_y*pre_pre_phi_grad[6]*pre_pre_phi[11]
+      // + alpha_y*pre_pre_phi[8]*pre_pre_phi_grad[9]+beta_y*pre_pre_phi[6]*pre_pre_phi_grad[11];
+      yvalue = pre_pre_phi[9]*pre_pre_phi[11];
+      ytemp = pre_pre_phi_grad[9]*pre_pre_phi[11]+pre_pre_phi[9]*pre_pre_phi_grad[11];
+
+      pre_phi_dx[3+5*r] = dyBubble[0]*yvalue + yBubble*ytemp[0];
+      pre_phi_dy[3+5*r] = dyBubble[1]*yvalue + yBubble*ytemp[1];
+      pre_phi_dz[3+5*r] = dyBubble[2]*yvalue + yBubble*ytemp[2];
 
       for(unsigned int j=1; j<r-2; ++j)
       {
         pre_phi[8+j] = yBubble*std::pow(pre_pre_phi[7],j);
         pre_phi[7+r+j] = yBubble*pre_pre_phi[6]*std::pow(pre_pre_phi[7],j);
         pre_phi[4+4*r+j] = yBubble*pre_pre_phi[8]*std::pow(pre_pre_phi[7],j);
-        pre_phi[3+5*r+j] = yBubble*pre_pre_phi[6]*pre_pre_phi[11]*std::pow(pre_pre_phi[7],j);     
+        pre_phi[3+5*r+j] = yBubble*pre_pre_phi[8]*pre_pre_phi[9]*std::pow(pre_pre_phi[7],j);     
 
         ytemp = j*std::pow(pre_pre_phi[7],j-1)*pre_pre_phi_grad[7];
         yvalue = std::pow(pre_pre_phi[7],j);
@@ -3830,10 +3890,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
         pre_phi_dy[4+4*r+j] = dyBubble[1]*yvalue+yBubble*ytemp[1];
         pre_phi_dz[4+4*r+j] = dyBubble[2]*yvalue+yBubble*ytemp[2];                
 
-        ytemp = pre_pre_phi[6]*pre_pre_phi[11]*j*std::pow(pre_pre_phi[7],j-1)*pre_pre_phi_grad[7]
-        + pre_pre_phi_grad[6]*pre_pre_phi[11]*std::pow(pre_pre_phi[7],j)
-        + pre_pre_phi[6]*pre_pre_phi_grad[11]*std::pow(pre_pre_phi[7],j); 
-        yvalue = pre_pre_phi[6]*pre_pre_phi[11]*std::pow(pre_pre_phi[7],j);
+        ytemp = pre_pre_phi[8]*pre_pre_phi[9]*j*std::pow(pre_pre_phi[7],j-1)*pre_pre_phi_grad[7]
+        + pre_pre_phi_grad[8]*pre_pre_phi[9]*std::pow(pre_pre_phi[7],j)
+        + pre_pre_phi[8]*pre_pre_phi_grad[9]*std::pow(pre_pre_phi[7],j); 
+        yvalue = pre_pre_phi[8]*pre_pre_phi[9]*std::pow(pre_pre_phi[7],j);
         pre_phi_dx[3+5*r+j] = dyBubble[0]*yvalue+yBubble*ytemp[0];
         pre_phi_dy[3+5*r+j] = dyBubble[1]*yvalue+yBubble*ytemp[1];
         pre_phi_dz[3+5*r+j] = dyBubble[2]*yvalue+yBubble*ytemp[2];                
@@ -3903,7 +3963,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       pre_phi[6+2*r] = xBubble;
       pre_phi[5+3*r] = xBubble*pre_pre_phi[7];
       pre_phi[2+6*r] = xBubble*pre_pre_phi[8];
-      pre_phi[1+7*r] = xBubble*pre_pre_phi[8]*pre_pre_phi[10];
+      // pre_phi[1+7*r] = xBubble*(alpha_x*pre_pre_phi[7]*pre_pre_phi[11]+beta_x*pre_pre_phi[8]*pre_pre_phi[10]);
+      pre_phi[1+7*r] = xBubble*(pre_pre_phi[10]*pre_pre_phi[11]);
+
 
       pre_phi_dx[6+2*r] = dxBubble[0];
       pre_phi_dy[6+2*r] = dxBubble[1];
@@ -3913,17 +3975,25 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       pre_phi_dz[5+3*r] = dxBubble[2]*pre_pre_phi[7]+xBubble*pre_pre_phi_grad[7][2];
       pre_phi_dx[2+6*r] = dxBubble[0]*pre_pre_phi[8]+xBubble*pre_pre_phi_grad[8][0];     
       pre_phi_dy[2+6*r] = dxBubble[1]*pre_pre_phi[8]+xBubble*pre_pre_phi_grad[8][1];     
-      pre_phi_dz[2+6*r] = dxBubble[2]*pre_pre_phi[8]+xBubble*pre_pre_phi_grad[8][2];     
-      pre_phi_dx[1+7*r] = pre_phi_dx[2+6*r]*pre_pre_phi[10]+pre_phi[2+6*r]*pre_pre_phi_grad[10][0];
-      pre_phi_dy[1+7*r] = pre_phi_dy[2+6*r]*pre_pre_phi[10]+pre_phi[2+6*r]*pre_pre_phi_grad[10][1];
-      pre_phi_dz[1+7*r] = pre_phi_dz[2+6*r]*pre_pre_phi[10]+pre_phi[2+6*r]*pre_pre_phi_grad[10][2];
+      pre_phi_dz[2+6*r] = dxBubble[2]*pre_pre_phi[8]+xBubble*pre_pre_phi_grad[8][2];   
+
+      // xvalue = alpha_x*pre_pre_phi[7]*pre_pre_phi[11]+beta_x*pre_pre_phi[8]*pre_pre_phi[10];
+      // xtemp = alpha_x*pre_pre_phi_grad[7]*pre_pre_phi[11]+beta_x*pre_pre_phi_grad[8]*pre_pre_phi[10]
+      // + alpha_x*pre_pre_phi[7]*pre_pre_phi_grad[11]+beta_x*pre_pre_phi[8]*pre_pre_phi_grad[10];
+
+      xvalue = pre_pre_phi[10]*pre_pre_phi[11];
+      xtemp = pre_pre_phi_grad[10]*pre_pre_phi[11]+pre_pre_phi[10]*pre_pre_phi_grad[11];
+
+      pre_phi_dx[1+7*r] = dxBubble[0]*xvalue + xBubble*xtemp[0];
+      pre_phi_dy[1+7*r] = dxBubble[1]*xvalue + xBubble*xtemp[1];
+      pre_phi_dz[1+7*r] = dxBubble[2]*xvalue + xBubble*xtemp[2];
 
       for(unsigned int j=1; j<r-2; ++j)
       {
         pre_phi[6+2*r+j] = xBubble*std::pow(pre_pre_phi[6],j);
         pre_phi[5+3*r+j] = xBubble*pre_pre_phi[7]*std::pow(pre_pre_phi[6],j);
         pre_phi[2+6*r+j] = xBubble*pre_pre_phi[8]*std::pow(pre_pre_phi[6],j);
-        pre_phi[1+7*r+j] = xBubble*pre_pre_phi[8]*pre_pre_phi[10]*std::pow(pre_pre_phi[6],j);
+        pre_phi[1+7*r+j] = xBubble*pre_pre_phi[7]*pre_pre_phi[11]*std::pow(pre_pre_phi[6],j);
 
         xvalue = std::pow(pre_pre_phi[6],j);
         xtemp = j*std::pow(pre_pre_phi[6],j-1)*pre_pre_phi_grad[6];
@@ -3945,10 +4015,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
         pre_phi_dy[2+6*r+j] = dxBubble[1]*xvalue+xBubble*xtemp[1];        
         pre_phi_dz[2+6*r+j] = dxBubble[2]*xvalue+xBubble*xtemp[2];
 
-        xvalue = pre_pre_phi[8]*pre_pre_phi[10]*std::pow(pre_pre_phi[6],j);
-        xtemp = pre_pre_phi[8]*pre_pre_phi[10]*j*std::pow(pre_pre_phi[6],j-1)*pre_pre_phi_grad[6]
-        + pre_pre_phi_grad[8]*pre_pre_phi[10]*std::pow(pre_pre_phi[6],j)
-        + pre_pre_phi[8]*pre_pre_phi_grad[10]*std::pow(pre_pre_phi[6],j);
+        xvalue = pre_pre_phi[7]*pre_pre_phi[11]*std::pow(pre_pre_phi[6],j);
+        xtemp = pre_pre_phi[7]*pre_pre_phi[11]*j*std::pow(pre_pre_phi[6],j-1)*pre_pre_phi_grad[6]
+        + pre_pre_phi_grad[7]*pre_pre_phi[11]*std::pow(pre_pre_phi[6],j)
+        + pre_pre_phi[7]*pre_pre_phi_grad[11]*std::pow(pre_pre_phi[6],j);
         pre_phi_dx[1+7*r+j] = dxBubble[0]*xvalue+xBubble*xtemp[0];
         pre_phi_dy[1+7*r+j] = dxBubble[1]*xvalue+xBubble*xtemp[1];
         pre_phi_dz[1+7*r+j] = dxBubble[2]*xvalue+xBubble*xtemp[2];
@@ -4018,7 +4088,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       pre_phi[8*r] = zBubble;
       pre_phi[9*r-1] = zBubble*pre_pre_phi[6];
       pre_phi[10*r-2] = zBubble*pre_pre_phi[7];
-      pre_phi[11*r-3] = zBubble*pre_pre_phi[6]*pre_pre_phi[10];
+      // pre_phi[11*r-3] = zBubble*(alpha_z*pre_pre_phi[7]*pre_pre_phi[9]+beta_z*pre_pre_phi[6]*pre_pre_phi[10]);
+      pre_phi[11*r-3] = zBubble*(pre_pre_phi[9]*pre_pre_phi[10]);
+
 
       pre_phi_dx[8*r] = dzBubble[0];
       pre_phi_dy[8*r] = dzBubble[1];
@@ -4029,16 +4101,24 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       pre_phi_dx[10*r-2] = dzBubble[0]*pre_pre_phi[7]+zBubble*pre_pre_phi_grad[7][0];
       pre_phi_dy[10*r-2] = dzBubble[1]*pre_pre_phi[7]+zBubble*pre_pre_phi_grad[7][1];
       pre_phi_dz[10*r-2] = dzBubble[2]*pre_pre_phi[7]+zBubble*pre_pre_phi_grad[7][2];
-      pre_phi_dx[11*r-3] = pre_phi_dx[9*r-1]*pre_pre_phi[10]+pre_phi[9*r-1]*pre_pre_phi_grad[10][0];
-      pre_phi_dy[11*r-3] = pre_phi_dy[9*r-1]*pre_pre_phi[10]+pre_phi[9*r-1]*pre_pre_phi_grad[10][1];
-      pre_phi_dz[11*r-3] = pre_phi_dz[9*r-1]*pre_pre_phi[10]+pre_phi[9*r-1]*pre_pre_phi_grad[10][2];
+
+      // zvalue = (alpha_z*pre_pre_phi[7]*pre_pre_phi[9]+beta_z*pre_pre_phi[6]*pre_pre_phi[10]);
+      // ztemp = (alpha_z*pre_pre_phi_grad[7]*pre_pre_phi[9]+beta_z*pre_pre_phi_grad[6]*pre_pre_phi[10])
+      // + (alpha_z*pre_pre_phi[7]*pre_pre_phi_grad[9]+beta_z*pre_pre_phi[6]*pre_pre_phi_grad[10]);
+
+      zvalue = (pre_pre_phi[9]*pre_pre_phi[10]);
+      ztemp = pre_pre_phi_grad[9]*pre_pre_phi[10]+pre_pre_phi[9]*pre_pre_phi_grad[10];
+
+      pre_phi_dx[11*r-3] = dzBubble[0]*zvalue+zBubble*ztemp[0];
+      pre_phi_dy[11*r-3] = dzBubble[1]*zvalue+zBubble*ztemp[1];
+      pre_phi_dz[11*r-3] = dzBubble[2]*zvalue+zBubble*ztemp[2];
 
       for(unsigned int j=1; j<r-2; ++j)
       {
         pre_phi[8*r+j] = zBubble*std::pow(pre_pre_phi[8],j);
         pre_phi[9*r-1+j] = zBubble*pre_pre_phi[6]*std::pow(pre_pre_phi[8],j);
         pre_phi[10*r-2+j] = zBubble*pre_pre_phi[7]*std::pow(pre_pre_phi[8],j);
-        pre_phi[11*r-3+j] = zBubble*pre_pre_phi[6]*pre_pre_phi[10]*std::pow(pre_pre_phi[8],j);
+        pre_phi[11*r-3+j] = zBubble*pre_pre_phi[7]*pre_pre_phi[9]*std::pow(pre_pre_phi[8],j);
 
         zvalue = std::pow(pre_pre_phi[8],j);
         ztemp = j*std::pow(pre_pre_phi[8],j-1)*pre_pre_phi_grad[8];
@@ -4060,10 +4140,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
         pre_phi_dy[10*r-2+j] = dzBubble[1]*zvalue+zBubble*ztemp[1];
         pre_phi_dz[10*r-2+j] = dzBubble[2]*zvalue+zBubble*ztemp[2];
 
-        zvalue = pre_pre_phi[6]*pre_pre_phi[10]*std::pow(pre_pre_phi[8],j);
-        ztemp = pre_pre_phi[6]*pre_pre_phi[10]*j*std::pow(pre_pre_phi[8],j-1)*pre_pre_phi_grad[8]
-        + pre_pre_phi_grad[6]*pre_pre_phi[10]*std::pow(pre_pre_phi[8],j)
-        + pre_pre_phi[6]*pre_pre_phi_grad[10]*std::pow(pre_pre_phi[8],j);
+        zvalue = pre_pre_phi[7]*pre_pre_phi[9]*std::pow(pre_pre_phi[8],j);
+        ztemp = pre_pre_phi[7]*pre_pre_phi[9]*j*std::pow(pre_pre_phi[8],j-1)*pre_pre_phi_grad[8]
+        + pre_pre_phi_grad[7]*pre_pre_phi[9]*std::pow(pre_pre_phi[8],j)
+        + pre_pre_phi[7]*pre_pre_phi_grad[9]*std::pow(pre_pre_phi[8],j);
         pre_phi_dx[11*r-3+j] = dzBubble[0]*zvalue+zBubble*ztemp[0];
         pre_phi_dy[11*r-3+j] = dzBubble[1]*zvalue+zBubble*ztemp[1];
         pre_phi_dz[11*r-3+j] = dzBubble[2]*zvalue+zBubble*ztemp[2];
