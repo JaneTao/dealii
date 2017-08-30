@@ -1847,10 +1847,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
   const unsigned int r = fe_degree;
 
   double alpha_x, beta_x, alpha_y, beta_y, alpha_z, beta_z,eta_x,eta_y,eta_z;
-
   alpha_x = 0.0; beta_x = 0.0; eta_x = 1.0;
   alpha_y = 0.0; beta_y = 0.0; eta_y = 1.0;
   alpha_z = 0.0; beta_z = 0.0; eta_z = 1.0;
+
+  double sigma_v,eta_v,sigma_h,eta_h;
+  sigma_v = 1.0; eta_v = 1.0;
+  sigma_h = 1.0; eta_h = 1.0;
 
   std::vector<double> pre_phi_int;
   std::vector<Tensor<1,dim> > pre_phi_int_grad;
@@ -1859,6 +1862,26 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
   {
     pre_pre_phi.resize(8);
     pre_pre_phi_grad.resize(8);
+
+    Tensor<1,dim> gamma_t = Gamma[2] - Gamma[3];
+    gamma_t = gamma_t/gamma_t.norm();
+    double cost = gamma_t*Gamma[0]/Gamma[0].norm();
+    sigma_v = 1.0/std::sqrt(1.0-cost*cost);
+    cost = gamma_t*Gamma[1]/Gamma[1].norm();
+    eta_v = 1.0/std::sqrt(1.0-cost*cost);
+
+    gamma_t = Gamma[0] - Gamma[1];
+    gamma_t = gamma_t/gamma_t.norm();
+    cost = gamma_t*Gamma[2]/Gamma[2].norm();
+    sigma_h = 1.0/std::sqrt(1.0-cost*cost);
+    cost = gamma_t*Gamma[3]/Gamma[3].norm();
+    eta_h = 1.0/std::sqrt(1.0-cost*cost);
+
+    // std::cout<<"sigma_v:" <<sigma_v
+    // <<"   eta_v:"<<eta_v
+    // <<"   sigma_h:"<<sigma_h
+    // <<"   eta_h:"<<eta_h
+    // <<std::endl;
 
     unsigned int row_no = 0;
     for(unsigned int vertex_no = 0; vertex_no<4; ++vertex_no, ++row_no)
@@ -1877,8 +1900,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
       // set matrix A
@@ -1907,8 +1930,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -1947,8 +1970,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -1987,8 +2010,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -2027,8 +2050,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -2266,8 +2289,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -2278,11 +2301,11 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       pre_pre_phi_grad[4] = pre_pre_phi_grad[0] - pre_pre_phi_grad[1];
       pre_pre_phi_grad[5] = pre_pre_phi_grad[2] - pre_pre_phi_grad[3];
       pre_pre_phi_grad[6] = 
-      (pre_pre_phi_grad[4] - pre_pre_phi[6]*(pre_pre_phi_grad[0]+pre_pre_phi_grad[1]))/
-      (pre_pre_phi[0] + pre_pre_phi[1]);
+      (pre_pre_phi_grad[4] - pre_pre_phi[6]*(sigma_v*pre_pre_phi_grad[0]+eta_v*pre_pre_phi_grad[1]))/
+      (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]);
       pre_pre_phi_grad[7] = 
-      (pre_pre_phi_grad[5] - pre_pre_phi[7]*(pre_pre_phi_grad[2]+pre_pre_phi_grad[3]))/
-      (pre_pre_phi[2] + pre_pre_phi[3]);
+      (pre_pre_phi_grad[5] - pre_pre_phi[7]*(sigma_h*pre_pre_phi_grad[2]+eta_h*pre_pre_phi_grad[3]))/
+      (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]);
 
 
       // for(unsigned int ii=0; ii<8; ++ii)
@@ -3139,7 +3162,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
   typename Mapping<dim,spacedim>::InternalDataBase &fedata,
   FEValuesData<dim,spacedim>                       &data) const
 {
-
+  
   Assert (dynamic_cast<InternalData *> (&fedata) != 0,
           ExcInternalError());
   InternalData &fe_data = static_cast<InternalData &> (fedata);
@@ -3310,10 +3333,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
   const unsigned int r = fe_degree;
 
   double alpha_x, beta_x, alpha_y, beta_y, alpha_z, beta_z,eta_x,eta_y,eta_z;
-
   alpha_x = 0.0; beta_x = 0.0; eta_x = 1.0;
   alpha_y = 0.0; beta_y = 0.0; eta_y = 1.0;
   alpha_z = 0.0; beta_z = 0.0; eta_z = 1.0;
+
+  double sigma_v,eta_v,sigma_h,eta_h;
+  sigma_v = 1.0; eta_v = 1.0;
+  sigma_h = 1.0; eta_h = 1.0;
 
   std::vector<double> pre_phi_int;
   std::vector<Tensor<1,dim> > pre_phi_int_grad;
@@ -3322,6 +3348,26 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
   {
     pre_pre_phi.resize(8);
     pre_pre_phi_grad.resize(8);
+
+    Tensor<1,dim> gamma_t = Gamma[2] - Gamma[3];
+    gamma_t = gamma_t/gamma_t.norm();
+    double cost = gamma_t*Gamma[0]/Gamma[0].norm();
+    sigma_v = 1.0/std::sqrt(1.0-cost*cost);
+    cost = gamma_t*Gamma[1]/Gamma[1].norm();
+    eta_v = 1.0/std::sqrt(1.0-cost*cost);
+
+    gamma_t = Gamma[0] - Gamma[1];
+    gamma_t = gamma_t/gamma_t.norm();
+    cost = gamma_t*Gamma[2]/Gamma[2].norm();
+    sigma_h = 1.0/std::sqrt(1.0-cost*cost);
+    cost = gamma_t*Gamma[3]/Gamma[3].norm();
+    eta_h = 1.0/std::sqrt(1.0-cost*cost);
+
+    // std::cout<<"sigma_v:" <<sigma_v
+    // <<"   eta_v:"<<eta_v
+    // <<"   sigma_h:"<<sigma_h
+    // <<"   eta_h:"<<eta_h
+    // <<std::endl;
 
     unsigned int row_no = 0;
     for(unsigned int vertex_no = 0; vertex_no<4; ++vertex_no, ++row_no)
@@ -3340,8 +3386,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
       // set matrix A
@@ -3370,8 +3416,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -3410,8 +3456,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -3450,8 +3496,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -3490,8 +3536,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -3729,8 +3775,8 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
       pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
       pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
-      pre_pre_phi[6] = pre_pre_phi[4] / (pre_pre_phi[0] + pre_pre_phi[1]); //R_V
-      pre_pre_phi[7] = pre_pre_phi[5] / (pre_pre_phi[2] + pre_pre_phi[3]); //R_H
+      pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+      pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
       AssertIsFinite(pre_pre_phi[6]);
       AssertIsFinite(pre_pre_phi[7]);
 
@@ -3741,11 +3787,11 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       pre_pre_phi_grad[4] = pre_pre_phi_grad[0] - pre_pre_phi_grad[1];
       pre_pre_phi_grad[5] = pre_pre_phi_grad[2] - pre_pre_phi_grad[3];
       pre_pre_phi_grad[6] = 
-      (pre_pre_phi_grad[4] - pre_pre_phi[6]*(pre_pre_phi_grad[0]+pre_pre_phi_grad[1]))/
-      (pre_pre_phi[0] + pre_pre_phi[1]);
+      (pre_pre_phi_grad[4] - pre_pre_phi[6]*(sigma_v*pre_pre_phi_grad[0]+eta_v*pre_pre_phi_grad[1]))/
+      (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]);
       pre_pre_phi_grad[7] = 
-      (pre_pre_phi_grad[5] - pre_pre_phi[7]*(pre_pre_phi_grad[2]+pre_pre_phi_grad[3]))/
-      (pre_pre_phi[2] + pre_pre_phi[3]);
+      (pre_pre_phi_grad[5] - pre_pre_phi[7]*(sigma_h*pre_pre_phi_grad[2]+eta_h*pre_pre_phi_grad[3]))/
+      (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]);
 
 
       // for(unsigned int ii=0; ii<8; ++ii)

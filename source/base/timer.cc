@@ -472,13 +472,13 @@ TimerOutput::print_summary () const
                  << "+---------------------------------------------+------------"
                  << "+------------+\n"
                  << "| Total CPU time elapsed since start          |";
-      out_stream << std::setw(10) << std::setprecision(3) << std::right;
+      out_stream << std::setw(10) << std::setprecision(6) << std::right;
       out_stream << total_cpu_time << "s |            |\n";
       out_stream << "|                                             |            "
                  << "|            |\n";
       out_stream << "| Section                         | no. calls |";
       out_stream << std::setw(10);
-      out_stream << std::setprecision(3);
+      out_stream << std::setprecision(6);
       out_stream << "  CPU time "  << " | % of total |\n";
       out_stream << "+---------------------------------+-----------+------------"
                  << "+------------+";
@@ -498,10 +498,10 @@ TimerOutput::print_summary () const
           out_stream << std::setw(9);
           out_stream << i->second.n_calls << " |";
           out_stream << std::setw(10);
-          out_stream << std::setprecision(3);
+          out_stream << std::setprecision(6);
           out_stream << i->second.total_cpu_time << "s |";
           out_stream << std::setw(10);
-          out_stream << std::setprecision(2);
+          out_stream << std::setprecision(4);
           double value = i->second.total_cpu_time/total_cpu_time * 100;
           if (!numbers::is_finite(value))
             value = 0.0;
@@ -529,13 +529,13 @@ TimerOutput::print_summary () const
                  << "+---------------------------------------------+------------"
                  << "+------------+\n"
                  << "| Total wallclock time elapsed since start    |";
-      out_stream << std::setw(10) << std::setprecision(3) << std::right;
+      out_stream << std::setw(10) << std::setprecision(6) << std::right;
       out_stream << total_wall_time << "s |            |\n";
       out_stream << "|                                             |            "
                  << "|            |\n";
       out_stream << "| Section                         | no. calls |";
       out_stream << std::setw(10);
-      out_stream << std::setprecision(3);
+      out_stream << std::setprecision(6);
       out_stream << "  wall time | % of total |\n";
       out_stream << "+---------------------------------+-----------+------------"
                  << "+------------+";
@@ -555,10 +555,10 @@ TimerOutput::print_summary () const
           out_stream << std::setw(9);
           out_stream << i->second.n_calls << " |";
           out_stream << std::setw(10);
-          out_stream << std::setprecision(3);
+          out_stream << std::setprecision(6);
           out_stream << i->second.total_wall_time << "s |";
           out_stream << std::setw(10);
-          out_stream << std::setprecision(2);
+          out_stream << std::setprecision(4);
           double value = i->second.total_wall_time/total_wall_time * 100;
           if (!numbers::is_finite(value))
             value = 0.0;
