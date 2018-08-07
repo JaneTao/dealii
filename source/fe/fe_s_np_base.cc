@@ -1728,6 +1728,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
     Assert(fe_degree>2, ExcMessage("3D non parametric serendipity only for degree>2"));
   }
 
+  // alternative formulation
+  bool flag_new = true;
+
   // 1) Set face normals
   compute_mapping_support_points(cell, fe_data.mapping_support_points);
   const Tensor<1,spacedim> *supp_pts = &fe_data.mapping_support_points[0];
@@ -1892,8 +1895,6 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
   std::vector<double> pre_phi_int;
   std::vector<Tensor<1,dim> > pre_phi_int_grad;
 
-
-
   if(dim==2)
   {
     pre_pre_phi.resize(8);
@@ -1987,9 +1988,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       A[row_no][2*fe_degree+1] = 
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
 
-      Point<dim> dof_pt_hat;
-      dof_pt_hat[0] = 0.0; dof_pt_hat[1] = (double)line_no/fe_degree;
-      A[row_no][2*fe_degree+1] = this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat);
+      if(flag_new)
+      {
+        Point<dim> dof_pt_hat;
+        dof_pt_hat[0] = 0.0; dof_pt_hat[1] = (double)line_no/fe_degree;
+        A[row_no][2*fe_degree+1] = 
+        this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat)*(-4.0);
+      }
     }
 
     Assert(row_no==fe_degree+3, ExcMessage("row number not correct"));
@@ -2031,9 +2036,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       A[row_no][2*fe_degree+1] = 
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
 
-      Point<dim> dof_pt_hat;
-      dof_pt_hat[0] = 1.0; dof_pt_hat[1] = (double)line_no/fe_degree;
-      A[row_no][2*fe_degree+1] = this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat);
+      if(flag_new)
+      {  
+        Point<dim> dof_pt_hat;
+        dof_pt_hat[0] = 1.0; dof_pt_hat[1] = (double)line_no/fe_degree;
+        A[row_no][2*fe_degree+1] = 
+        this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat)*(-4.0);
+      }
     }
 
     Assert(row_no==2*fe_degree+2, ExcMessage("row number not correct"));
@@ -2075,9 +2084,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       A[row_no][4*fe_degree-1] = 
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
 
-      Point<dim> dof_pt_hat;
-      dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 0.0;
-      A[row_no][4*fe_degree-1] = this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat);
+      if(flag_new)
+      {
+        Point<dim> dof_pt_hat;
+        dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 0.0;
+        A[row_no][4*fe_degree-1] = 
+        this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat)*(-4.0);
+      }
     }
 
     Assert(row_no==3*fe_degree+1, ExcMessage("row number not correct"));
@@ -2119,9 +2132,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       A[row_no][4*fe_degree-1] = 
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
 
-      Point<dim> dof_pt_hat;
-      dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 1.0;
-      A[row_no][4*fe_degree-1] = this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat);
+      if(flag_new)
+      {
+        Point<dim> dof_pt_hat;
+        dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 1.0;
+        A[row_no][4*fe_degree-1] = 
+        this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat)*(-4.0);
+      }
     }
   } //end (dim==2)
 
@@ -2325,10 +2342,11 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
 
   std::vector<std::vector<Tensor<1,dim> > > temp_gradients;
 
-  if(dim==2)
+  if(dim==2 && flag_new)
   {
     temp_gradients.resize(2,
                         std::vector<Tensor<1,dim> > (n_q_points));
+
     mapping.transform(fe_data.shape_gradients[2*fe_degree+1], 
                       temp_gradients[0],
                       mapping_data, mapping_covariant);
@@ -2471,15 +2489,17 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       // std::cout<<"*** pre_phi_dy:"<<std::endl;
       // std::cout<<pre_phi_dy<<std::endl;
 
-      pre_phi[2*fe_degree+1] = fe_data.shape_values[2*fe_degree+1][k];
-      pre_phi[4*fe_degree-1] = fe_data.shape_values[4*fe_degree-1][k];
+      if(flag_new)
+      {
+        pre_phi[2*fe_degree+1] = fe_data.shape_values[2*fe_degree+1][k]*(-4.0);
+        pre_phi[4*fe_degree-1] = fe_data.shape_values[4*fe_degree-1][k]*(-4.0);
 
-      pre_phi_dx[2*fe_degree+1] = temp_gradients[0][k][0];
-      pre_phi_dy[2*fe_degree+1] = temp_gradients[0][k][1];
+        pre_phi_dx[2*fe_degree+1] = temp_gradients[0][k][0]*(-4.0);
+        pre_phi_dy[2*fe_degree+1] = temp_gradients[0][k][1]*(-4.0);
 
-      pre_phi_dx[4*fe_degree-1] = temp_gradients[1][k][0];
-      pre_phi_dy[4*fe_degree-1] = temp_gradients[1][k][1];
-
+        pre_phi_dx[4*fe_degree-1] = temp_gradients[1][k][0]*(-4.0);
+        pre_phi_dy[4*fe_degree-1] = temp_gradients[1][k][1]*(-4.0);
+      }
     } //end dim==2
 
     if(dim==3)
@@ -3267,6 +3287,9 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
     Assert(fe_degree>2, ExcMessage("3D non parametric serendipity only for degree>2"));
   }
 
+  // alternative formulation
+  bool flag_new = true;
+
   // 1) Set face normals
   compute_mapping_support_points(cell, fe_data.mapping_support_points);
   const Tensor<1,spacedim> *supp_pts = &fe_data.mapping_support_points[0];
@@ -3526,9 +3549,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       A[row_no][2*fe_degree+1] = 
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
 
-      Point<dim> dof_pt_hat;
-      dof_pt_hat[0] = 0.0; dof_pt_hat[1] = (double)line_no/fe_degree;
-      A[row_no][2*fe_degree+1] = this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat);
+      if(flag_new)
+      {
+        Point<dim> dof_pt_hat;
+        dof_pt_hat[0] = 0.0; dof_pt_hat[1] = (double)line_no/fe_degree;
+        A[row_no][2*fe_degree+1] = 
+        this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat)*(-4.0);
+      }
     }
 
     Assert(row_no==fe_degree+3, ExcMessage("row number not correct"));
@@ -3570,9 +3597,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       A[row_no][2*fe_degree+1] = 
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
 
-      Point<dim> dof_pt_hat;
-      dof_pt_hat[0] = 1.0; dof_pt_hat[1] = (double)line_no/fe_degree;
-      A[row_no][2*fe_degree+1] = this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat);
+      if(flag_new)
+      {
+        Point<dim> dof_pt_hat;
+        dof_pt_hat[0] = 1.0; dof_pt_hat[1] = (double)line_no/fe_degree;
+        A[row_no][2*fe_degree+1] = 
+        this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat)*(-4.0);
+      }
     }
 
     Assert(row_no==2*fe_degree+2, ExcMessage("row number not correct"));
@@ -3614,9 +3645,12 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       A[row_no][4*fe_degree-1] = 
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
 
-      Point<dim> dof_pt_hat;
-      dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 0.0;
-      A[row_no][4*fe_degree-1] = this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat);
+      if(flag_new){
+        Point<dim> dof_pt_hat;
+        dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 0.0;
+        A[row_no][4*fe_degree-1] = 
+        this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat)*(-4.0);
+      }
     }
 
     Assert(row_no==3*fe_degree+1, ExcMessage("row number not correct"));
@@ -3658,9 +3692,13 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       A[row_no][4*fe_degree-1] = 
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
 
-      Point<dim> dof_pt_hat;
-      dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 1.0;
-      A[row_no][4*fe_degree-1] = this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat);
+      if(flag_new)
+      {
+        Point<dim> dof_pt_hat;
+        dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 1.0;
+        A[row_no][4*fe_degree-1] = 
+        this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat)*(-4.0);
+      }
     }
   } //end (dim==2)
 
@@ -3864,7 +3902,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
 
   std::vector<std::vector<Tensor<1,dim> > > temp_gradients;
 
-  if(dim == 2)
+  if(dim == 2 && flag_new)
   {
     temp_gradients.resize(2, std::vector<Tensor<1,dim> > (n_q_points));
     // std::cout<<"offset="<<offset<<", n_q_points="<<n_q_points<<std::endl;
@@ -4015,16 +4053,17 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
 
       // std::cout<<"*** pre_phi_dy:"<<std::endl;
       // std::cout<<pre_phi_dy<<std::endl;
+      if(flag_new)
+      {
+        pre_phi[2*fe_degree+1] = fe_data.shape_values[2*fe_degree+1][k+offset]*(-4.0);
+        pre_phi[4*fe_degree-1] = fe_data.shape_values[4*fe_degree-1][k+offset]*(-4.0);
 
-      pre_phi[2*fe_degree+1] = fe_data.shape_values[2*fe_degree+1][k+offset];
-      pre_phi[4*fe_degree-1] = fe_data.shape_values[4*fe_degree-1][k+offset];
+        pre_phi_dx[2*fe_degree+1] = temp_gradients[0][k][0]*(-4.0);
+        pre_phi_dy[2*fe_degree+1] = temp_gradients[0][k][1]*(-4.0);
 
-      pre_phi_dx[2*fe_degree+1] = temp_gradients[0][k][0];
-      pre_phi_dy[2*fe_degree+1] = temp_gradients[0][k][1];
-
-      pre_phi_dx[4*fe_degree-1] = temp_gradients[1][k][0];
-      pre_phi_dy[4*fe_degree-1] = temp_gradients[1][k][1];
-
+        pre_phi_dx[4*fe_degree-1] = temp_gradients[1][k][0]*(-4.0);
+        pre_phi_dy[4*fe_degree-1] = temp_gradients[1][k][1]*(-4.0);
+      }
     } //end dim==2
 
     if(dim==3)
