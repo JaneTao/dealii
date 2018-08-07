@@ -1348,7 +1348,8 @@ void MappingQ1<dim,spacedim>::transform_fields(
     {
       Assert (data.update_flags & update_contravariant_transformation,
               typename FEValuesBase<dim>::ExcAccessToUninitializedField("update_contravariant_transformation"));
-
+      Assert (data.update_flags & update_covariant_transformation,
+              typename FEValuesBase<dim>::ExcAccessToUninitializedField("update_covariant_transformation"));
       for (unsigned int i=0; i<output.size(); ++i)
         output[i] = apply_transformation(data.covariant[i], input[i]);
 

@@ -122,7 +122,7 @@ public:
   virtual void
   fill_fe_face_values (const Mapping<dim,spacedim> &mapping,
                        const typename Triangulation<dim,spacedim>::cell_iterator &cell,
-                       const unsigned int                                  face_no,
+                       const unsigned int                                  face,
                        const Quadrature<dim-1>                            &quadrature,
                        typename Mapping<dim,spacedim>::InternalDataBase   &mapping_internal,
                        typename Mapping<dim,spacedim>::InternalDataBase   &fe_internal,
@@ -142,6 +142,9 @@ public:
   {
     public:
       InternalData(const unsigned int n_shape_functions);
+
+      std::vector<std::vector<double> > shape_values;
+      std::vector<std::vector<Tensor<1,dim> > > shape_gradients;
 
       std::vector<Tensor<1,dim> > corner_derivatives;
       std::vector<double> corner_values;
@@ -194,6 +197,7 @@ public:
 
 private:
   mutable Threads::Mutex mutex;
+
 };
 
 

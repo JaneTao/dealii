@@ -1434,7 +1434,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::update_each (const UpdateFlags flags) const
   UpdateFlags out = flags;
 
   if (flags & (update_values | update_gradients))
-    out |= update_quadrature_points ;
+    out |= update_quadrature_points | update_covariant_transformation;
 
   return out;
 }
@@ -1454,6 +1454,40 @@ FE_S_NP_Base<POLY,dim,spacedim>::get_data (
 
   const UpdateFlags flags(data->update_flags);
   const unsigned int n_q_points = quadrature.size();  
+
+  // some scratch arrays
+  std::vector<double> values(0);
+  std::vector<Tensor<1,dim> > grads(0);
+  std::vector<Tensor<2,dim> > grad_grads(0);  
+
+  // if (flags & update_values)
+    {
+      values.resize (this->dofs_per_cell);
+      data->shape_values.resize (this->dofs_per_cell,
+                                 std::vector<double> (n_q_points));
+    }
+
+  // if (flags & update_gradients)
+    {
+      grads.resize (this->dofs_per_cell);
+      data->shape_gradients.resize (this->dofs_per_cell,
+                                    std::vector<Tensor<1,dim> > (n_q_points));
+    }
+
+  // if (flags & (update_values | update_gradients))
+  for (unsigned int i=0; i<n_q_points; ++i)
+    {
+      this->poly_space.compute(quadrature.point(i),
+                         values, grads, grad_grads);
+
+      // if (flags & update_values)
+        for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+          data->shape_values[k][i] = values[k];
+
+      // if (flags & update_gradients)
+        for (unsigned int k=0; k<this->dofs_per_cell; ++k)
+          data->shape_gradients[k][i] = grads[k];
+    }  
 
   data->corner_derivatives.resize(data->n_shape_functions * GeometryInfo<dim>::vertices_per_cell);
   data->corner_values.resize(data->n_shape_functions * GeometryInfo<dim>::vertices_per_cell);
@@ -1858,24 +1892,26 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
   std::vector<double> pre_phi_int;
   std::vector<Tensor<1,dim> > pre_phi_int_grad;
 
+
+
   if(dim==2)
   {
     pre_pre_phi.resize(8);
     pre_pre_phi_grad.resize(8);
 
-    Tensor<1,dim> gamma_t = Gamma[2] - Gamma[3];
-    gamma_t = gamma_t/gamma_t.norm();
-    double cost = gamma_t*Gamma[0]/Gamma[0].norm();
-    sigma_v = 1.0/std::sqrt(1.0-cost*cost);
-    cost = gamma_t*Gamma[1]/Gamma[1].norm();
-    eta_v = 1.0/std::sqrt(1.0-cost*cost);
+    // Tensor<1,dim> gamma_t = Gamma[2] - Gamma[3];
+    // gamma_t = gamma_t/gamma_t.norm();
+    // double cost = gamma_t*Gamma[0]/Gamma[0].norm();
+    // sigma_v = 1.0/std::sqrt(1.0-cost*cost);
+    // cost = gamma_t*Gamma[1]/Gamma[1].norm();
+    // eta_v = 1.0/std::sqrt(1.0-cost*cost);
 
-    gamma_t = Gamma[0] - Gamma[1];
-    gamma_t = gamma_t/gamma_t.norm();
-    cost = gamma_t*Gamma[2]/Gamma[2].norm();
-    sigma_h = 1.0/std::sqrt(1.0-cost*cost);
-    cost = gamma_t*Gamma[3]/Gamma[3].norm();
-    eta_h = 1.0/std::sqrt(1.0-cost*cost);
+    // gamma_t = Gamma[0] - Gamma[1];
+    // gamma_t = gamma_t/gamma_t.norm();
+    // cost = gamma_t*Gamma[2]/Gamma[2].norm();
+    // sigma_h = 1.0/std::sqrt(1.0-cost*cost);
+    // cost = gamma_t*Gamma[3]/Gamma[3].norm();
+    // eta_h = 1.0/std::sqrt(1.0-cost*cost);
 
     // std::cout<<"sigma_v:" <<sigma_v
     // <<"   eta_v:"<<eta_v
@@ -1919,6 +1955,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       Point<dim> dof_pt;
       dof_pt[0] = supp_pts[0][0]+(supp_pts[2][0]-supp_pts[0][0])*line_no/fe_degree;
       dof_pt[1] = supp_pts[0][1]+(supp_pts[2][1]-supp_pts[0][1])*line_no/fe_degree;
+
       // set pre_pre_phi values
       pre_pre_phi[0] = (dof_pt - supp_pts[0])*Gamma[0]; //lambda_0
       pre_pre_phi[1] = (dof_pt - supp_pts[1])*Gamma[1]; //lambda_1
@@ -1949,6 +1986,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       }
       A[row_no][2*fe_degree+1] = 
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
+
+      Point<dim> dof_pt_hat;
+      dof_pt_hat[0] = 0.0; dof_pt_hat[1] = (double)line_no/fe_degree;
+      A[row_no][2*fe_degree+1] = this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat);
     }
 
     Assert(row_no==fe_degree+3, ExcMessage("row number not correct"));
@@ -1989,6 +2030,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       }
       A[row_no][2*fe_degree+1] = 
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
+
+      Point<dim> dof_pt_hat;
+      dof_pt_hat[0] = 1.0; dof_pt_hat[1] = (double)line_no/fe_degree;
+      A[row_no][2*fe_degree+1] = this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat);
     }
 
     Assert(row_no==2*fe_degree+2, ExcMessage("row number not correct"));
@@ -2029,6 +2074,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       }
       A[row_no][4*fe_degree-1] = 
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
+
+      Point<dim> dof_pt_hat;
+      dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 0.0;
+      A[row_no][4*fe_degree-1] = this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat);
     }
 
     Assert(row_no==3*fe_degree+1, ExcMessage("row number not correct"));
@@ -2069,6 +2118,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
       }
       A[row_no][4*fe_degree-1] = 
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
+
+      Point<dim> dof_pt_hat;
+      dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 1.0;
+      A[row_no][4*fe_degree-1] = this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat);
     }
   } //end (dim==2)
 
@@ -2260,16 +2313,35 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
 
   // 3) invert A
   { // note for square matrix if AB=I, then BA=I
+    // A.print_formatted(std::cout);
     LAPACKFullMatrix<double> ll_inverse(A.m(), A.n());
     ll_inverse = A;
     ll_inverse.invert();
     A = ll_inverse;
+    // Assert(false,ExcInternalError());
   }
 
   // 4) set values and grads for each quadrature points
+
+  std::vector<std::vector<Tensor<1,dim> > > temp_gradients;
+
+  if(dim==2)
+  {
+    temp_gradients.resize(2,
+                        std::vector<Tensor<1,dim> > (n_q_points));
+    mapping.transform(fe_data.shape_gradients[2*fe_degree+1], 
+                      temp_gradients[0],
+                      mapping_data, mapping_covariant);
+
+    mapping.transform(fe_data.shape_gradients[4*fe_degree-1], 
+                      temp_gradients[1],
+                      mapping_data, mapping_covariant);    
+  }
+
   for(unsigned int k=0; k<n_q_points; ++k)
   {
     Point<dim> quad_pt = data.quadrature_points[k];
+    // Point<dim> quad_pt_hat = quadrature.point(k);
 
     Vector<double> pre_phi;
     Vector<double> pre_phi_dx;
@@ -2398,6 +2470,15 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_values (
 
       // std::cout<<"*** pre_phi_dy:"<<std::endl;
       // std::cout<<pre_phi_dy<<std::endl;
+
+      pre_phi[2*fe_degree+1] = fe_data.shape_values[2*fe_degree+1][k];
+      pre_phi[4*fe_degree-1] = fe_data.shape_values[4*fe_degree-1][k];
+
+      pre_phi_dx[2*fe_degree+1] = temp_gradients[0][k][0];
+      pre_phi_dy[2*fe_degree+1] = temp_gradients[0][k][1];
+
+      pre_phi_dx[4*fe_degree-1] = temp_gradients[1][k][0];
+      pre_phi_dy[4*fe_degree-1] = temp_gradients[1][k][1];
 
     } //end dim==2
 
@@ -3156,16 +3237,22 @@ void
 FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
   const Mapping<dim,spacedim>                      &mapping,
   const typename Triangulation<dim,spacedim>::cell_iterator &cell,
-  const unsigned int                                  face_no,
+  const unsigned int                                  face,
   const Quadrature<dim-1>                            &quadrature,
   typename Mapping<dim,spacedim>::InternalDataBase &mapping_data,
   typename Mapping<dim,spacedim>::InternalDataBase &fedata,
   FEValuesData<dim,spacedim>                       &data) const
 {
-  
   Assert (dynamic_cast<InternalData *> (&fedata) != 0,
           ExcInternalError());
   InternalData &fe_data = static_cast<InternalData &> (fedata);
+
+  const typename QProjector<dim>::DataSetDescriptor offset
+    = QProjector<dim>::DataSetDescriptor::face (face,
+                                                cell->face_orientation(face),
+                                                cell->face_flip(face),
+                                                cell->face_rotation(face),
+                                                quadrature.size());
 
   const UpdateFlags flags(fe_data.current_update_flags());
 
@@ -3344,24 +3431,26 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
   std::vector<double> pre_phi_int;
   std::vector<Tensor<1,dim> > pre_phi_int_grad;
 
+
+
   if(dim==2)
   {
     pre_pre_phi.resize(8);
     pre_pre_phi_grad.resize(8);
 
-    Tensor<1,dim> gamma_t = Gamma[2] - Gamma[3];
-    gamma_t = gamma_t/gamma_t.norm();
-    double cost = gamma_t*Gamma[0]/Gamma[0].norm();
-    sigma_v = 1.0/std::sqrt(1.0-cost*cost);
-    cost = gamma_t*Gamma[1]/Gamma[1].norm();
-    eta_v = 1.0/std::sqrt(1.0-cost*cost);
+    // Tensor<1,dim> gamma_t = Gamma[2] - Gamma[3];
+    // gamma_t = gamma_t/gamma_t.norm();
+    // double cost = gamma_t*Gamma[0]/Gamma[0].norm();
+    // sigma_v = 1.0/std::sqrt(1.0-cost*cost);
+    // cost = gamma_t*Gamma[1]/Gamma[1].norm();
+    // eta_v = 1.0/std::sqrt(1.0-cost*cost);
 
-    gamma_t = Gamma[0] - Gamma[1];
-    gamma_t = gamma_t/gamma_t.norm();
-    cost = gamma_t*Gamma[2]/Gamma[2].norm();
-    sigma_h = 1.0/std::sqrt(1.0-cost*cost);
-    cost = gamma_t*Gamma[3]/Gamma[3].norm();
-    eta_h = 1.0/std::sqrt(1.0-cost*cost);
+    // gamma_t = Gamma[0] - Gamma[1];
+    // gamma_t = gamma_t/gamma_t.norm();
+    // cost = gamma_t*Gamma[2]/Gamma[2].norm();
+    // sigma_h = 1.0/std::sqrt(1.0-cost*cost);
+    // cost = gamma_t*Gamma[3]/Gamma[3].norm();
+    // eta_h = 1.0/std::sqrt(1.0-cost*cost);
 
     // std::cout<<"sigma_v:" <<sigma_v
     // <<"   eta_v:"<<eta_v
@@ -3405,6 +3494,7 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       Point<dim> dof_pt;
       dof_pt[0] = supp_pts[0][0]+(supp_pts[2][0]-supp_pts[0][0])*line_no/fe_degree;
       dof_pt[1] = supp_pts[0][1]+(supp_pts[2][1]-supp_pts[0][1])*line_no/fe_degree;
+
       // set pre_pre_phi values
       pre_pre_phi[0] = (dof_pt - supp_pts[0])*Gamma[0]; //lambda_0
       pre_pre_phi[1] = (dof_pt - supp_pts[1])*Gamma[1]; //lambda_1
@@ -3435,6 +3525,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       }
       A[row_no][2*fe_degree+1] = 
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
+
+      Point<dim> dof_pt_hat;
+      dof_pt_hat[0] = 0.0; dof_pt_hat[1] = (double)line_no/fe_degree;
+      A[row_no][2*fe_degree+1] = this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat);
     }
 
     Assert(row_no==fe_degree+3, ExcMessage("row number not correct"));
@@ -3475,6 +3569,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       }
       A[row_no][2*fe_degree+1] = 
         pre_pre_phi[2]*pre_pre_phi[3]*pre_pre_phi[6]*std::pow(pre_pre_phi[5],fe_degree-2);
+
+      Point<dim> dof_pt_hat;
+      dof_pt_hat[0] = 1.0; dof_pt_hat[1] = (double)line_no/fe_degree;
+      A[row_no][2*fe_degree+1] = this->poly_space.compute_value(2*fe_degree+1, dof_pt_hat);
     }
 
     Assert(row_no==2*fe_degree+2, ExcMessage("row number not correct"));
@@ -3515,6 +3613,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       }
       A[row_no][4*fe_degree-1] = 
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
+
+      Point<dim> dof_pt_hat;
+      dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 0.0;
+      A[row_no][4*fe_degree-1] = this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat);
     }
 
     Assert(row_no==3*fe_degree+1, ExcMessage("row number not correct"));
@@ -3555,6 +3657,10 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
       }
       A[row_no][4*fe_degree-1] = 
         pre_pre_phi[0]*pre_pre_phi[1]*pre_pre_phi[7]*std::pow(pre_pre_phi[4],fe_degree-2);
+
+      Point<dim> dof_pt_hat;
+      dof_pt_hat[0] = (double)line_no/fe_degree; dof_pt_hat[1] = 1.0;
+      A[row_no][4*fe_degree-1] = this->poly_space.compute_value(4*fe_degree-1, dof_pt_hat);
     }
   } //end (dim==2)
 
@@ -3746,16 +3852,41 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
 
   // 3) invert A
   { // note for square matrix if AB=I, then BA=I
+    // A.print_formatted(std::cout);
     LAPACKFullMatrix<double> ll_inverse(A.m(), A.n());
     ll_inverse = A;
     ll_inverse.invert();
     A = ll_inverse;
+    // Assert(false,ExcInternalError());
   }
 
   // 4) set values and grads for each quadrature points
+
+  std::vector<std::vector<Tensor<1,dim> > > temp_gradients;
+
+  if(dim == 2)
+  {
+    temp_gradients.resize(2, std::vector<Tensor<1,dim> > (n_q_points));
+    // std::cout<<"offset="<<offset<<", n_q_points="<<n_q_points<<std::endl;
+    // std::cout<<fe_data.shape_gradients.size()<<"  "
+    // <<fe_data.shape_gradients[0].size()<<std::endl;
+    // Assert (flags & update_contravariant_transformation,
+    //     typename FEValuesBase<dim>::ExcAccessToUninitializedField("update_contravariant_transformation"));
+    // Assert (flags & update_covariant_transformation,
+    //     typename FEValuesBase<dim>::ExcAccessToUninitializedField("update_covariant_transformation"));
+    mapping.transform(make_slice(fe_data.shape_gradients[2*fe_degree+1],offset,n_q_points),
+                      temp_gradients[0],
+                      mapping_data, mapping_covariant);
+    // Assert(false,ExcInternalError());
+    mapping.transform(make_slice(fe_data.shape_gradients[4*fe_degree-1],offset,n_q_points),
+                      temp_gradients[1],
+                      mapping_data, mapping_covariant);    
+  }
+
   for(unsigned int k=0; k<n_q_points; ++k)
   {
     Point<dim> quad_pt = data.quadrature_points[k];
+    // Point<dim> quad_pt_hat = quadrature.point(k);
 
     Vector<double> pre_phi;
     Vector<double> pre_phi_dx;
@@ -3884,6 +4015,15 @@ FE_S_NP_Base<POLY,dim,spacedim>::fill_fe_face_values (
 
       // std::cout<<"*** pre_phi_dy:"<<std::endl;
       // std::cout<<pre_phi_dy<<std::endl;
+
+      pre_phi[2*fe_degree+1] = fe_data.shape_values[2*fe_degree+1][k+offset];
+      pre_phi[4*fe_degree-1] = fe_data.shape_values[4*fe_degree-1][k+offset];
+
+      pre_phi_dx[2*fe_degree+1] = temp_gradients[0][k][0];
+      pre_phi_dy[2*fe_degree+1] = temp_gradients[0][k][1];
+
+      pre_phi_dx[4*fe_degree-1] = temp_gradients[1][k][0];
+      pre_phi_dy[4*fe_degree-1] = temp_gradients[1][k][1];
 
     } //end dim==2
 
