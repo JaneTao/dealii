@@ -41,9 +41,9 @@ FE_DGVector_NP<POLY,dim,spacedim>::FE_DGVector_NP (
   QGauss<dim> quadrature(polynomial_degree+1);
   this->generalized_support_points = quadrature.get_points();
 
-  this->reinit_restriction_and_prolongation_matrices(true, true);
-  FETools::compute_projection_matrices (*this, this->restriction, true);
-  FETools::compute_embedding_matrices (*this, this->prolongation, true);
+  // this->reinit_restriction_and_prolongation_matrices(true, true);
+  // FETools::compute_projection_matrices (*this, this->restriction, true);
+  // FETools::compute_embedding_matrices (*this, this->prolongation, true);
 }
 
 

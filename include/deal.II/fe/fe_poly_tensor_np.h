@@ -218,22 +218,41 @@ protected:
    * <i>i</i> at quadrature point <i>k</i> is accessed by indices
    * <i>(i,k)</i>.
    */
+public:
   class InternalData : public FiniteElement<dim,spacedim>::InternalDataBase
   {
   public:
-    /**
-     * Array with shape function values in quadrature points. There is one row
-     * for each shape function, containing values for each quadrature point.
-     */
+    InternalData(const unsigned int n_shape_functions);
+  
     std::vector<std::vector<Tensor<1,dim> > > shape_values;
-
-    /**
-     * Array with shape function gradients in quadrature points. There is one
-     * row for each shape function, containing values for each quadrature
-     * point.
-     */
     std::vector< std::vector< DerivativeForm<1, dim, spacedim> > > shape_grads;
+
+    std::vector<Tensor<1,dim> > corner_derivatives;
+    std::vector<Point<spacedim> > mapping_support_points;
+
+    unsigned int n_shape_functions;
+
+    Tensor<1,dim> corner_derivative (const unsigned int cn_nr,
+        const unsigned int shape_nr) const;
+
+    Tensor<1,dim> &corner_derivative (const unsigned int cn_nr,
+        const unsigned int shape_nr);
+
   };
+
+protected:
+  void compute_shapes (const std::vector<Point<dim> > &unit_points,
+                       InternalData &data) const;
+
+  virtual void compute_mapping_support_points(
+    const typename Triangulation<dim,spacedim>::cell_iterator &cell,
+    std::vector<Point<spacedim> > &a) const;
+
+
+  virtual void compute_shapes_virtual (const std::vector<Point<dim> > &unit_points,
+                                       InternalData &data) const;
+
+  static const unsigned int n_shape_functions = GeometryInfo<dim>::vertices_per_cell;
 
   /**
    * The polynomial space. Its type is given by the template parameter POLY.
@@ -278,6 +297,32 @@ protected:
    */
   mutable std::vector<Tensor<3,dim> > cached_grad_grads;
 };
+
+
+template<class POLY, int dim, int spacedim>
+inline
+Tensor<1,dim>
+FE_PolyTensor_NP<POLY,dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr,
+  const unsigned int shape_nr) const
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_derivatives.size()));
+  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+}
+
+template<class POLY, int dim, int spacedim>
+inline
+Tensor<1,dim> &
+FE_PolyTensor_NP<POLY,dim,spacedim>::InternalData::corner_derivative (const unsigned int cn_nr,
+  const unsigned int shape_nr)
+{
+  Assert(cn_nr*n_shape_functions + shape_nr < corner_derivatives.size(),
+         ExcIndexRange(cn_nr*n_shape_functions + shape_nr, 0,
+                       corner_derivatives.size()));
+  return corner_derivatives [cn_nr*n_shape_functions + shape_nr];
+}
+
 
 DEAL_II_NAMESPACE_CLOSE
 

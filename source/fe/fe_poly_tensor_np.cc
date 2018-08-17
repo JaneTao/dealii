@@ -24,12 +24,21 @@
 
 DEAL_II_NAMESPACE_OPEN
 
+template<class POLY, int dim, int spacedim>
+const unsigned int FE_PolyTensor_NP<POLY,dim,spacedim>::n_shape_functions;
+
+template<class POLY, int dim, int spacedim>
+FE_PolyTensor_NP<POLY,dim,spacedim>::InternalData::InternalData (const unsigned int n_shape_functions)
+  :
+  n_shape_functions (n_shape_functions)
+{}
+
 namespace
 {
-//---------------------------------------------------------------------------
-// Utility method, which is used to determine the change of sign for
-// the DoFs on the faces of the given cell.
-//---------------------------------------------------------------------------
+  //---------------------------------------------------------------------------
+  // Utility method, which is used to determine the change of sign for
+  // the DoFs on the faces of the given cell.
+  //---------------------------------------------------------------------------
 
   /**
    * On noncartesian grids, the sign of the DoFs associated with the faces of
@@ -74,7 +83,7 @@ namespace
                   Assert (f * dofs_per_face + j < face_sign.size(),
                           ExcInternalError());
 
-//TODO: This is probably only going to work for those elements for which all dofs are face dofs
+  //TODO: This is probably only going to work for those elements for which all dofs are face dofs
                   face_sign[f * dofs_per_face + j] = -1.0;
                 }
           }
@@ -89,7 +98,7 @@ namespace
                            std::vector<double>                   &face_sign)
   {
     std::fill (face_sign.begin (), face_sign.end (), 1.0);
-//TODO: think about what it would take here
+  //TODO: think about what it would take here
   }
 
   void
@@ -161,7 +170,8 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::FE_PolyTensor_NP (const unsigned int degree
         }
       else
         {
-          piola_boundary = 3*(degree+1) - ((degree==0) ? 1 : 0);
+          // piola_boundary = 3*(degree+1) - ((degree==0) ? 1 : 0);
+          Assert(false, ExcMessage("Not implemented for dim=3, look for AT spaces"));
         }
     }
   // std::cout<<"degree: "<<degree<<" piola_boundary: "<<piola_boundary<<" poly_space: "
@@ -304,7 +314,7 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::get_data (
 {
   // generate a new data object and
   // initialize some fields
-  InternalData *data = new InternalData;
+  InternalData *data = new InternalData(n_shape_functions);
 
   // check what needs to be
   // initialized only once and what
@@ -347,7 +357,7 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::get_data (
   // that
   if (flags & update_hessians)
     {
-//      grad_grads.resize (this->dofs_per_cell);
+      grad_grads.resize (this->dofs_per_cell);
       data->initialize_2nd (this, mapping, quadrature);
     }
 
@@ -392,15 +402,95 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::get_data (
                   data->shape_grads[i][k] = add_grads;
                 }
           }
-
       }
 
-  // Assert(false, ExcMessage("get_data_done"));
+  data->corner_derivatives.resize(data->n_shape_functions * GeometryInfo<dim>::vertices_per_cell);
+  compute_shapes (quadrature.get_points(), *data);
+
   return data;
 }
 
+template <class POLY, int dim, int spacedim>
+void
+FE_PolyTensor_NP<POLY,dim,spacedim>::compute_shapes (const std::vector<Point<dim> > &unit_points,
+                                         InternalData &data) const
+{
+    FE_PolyTensor_NP<POLY,dim,spacedim>::compute_shapes_virtual(unit_points, data);
+}
 
+namespace internal
+{
+  namespace FE_PolyTensor_NP
+  {
+    template <class POLY, int spacedim>
+    void
+    compute_shapes_virtual (const unsigned int            n_shape_functions,
+                            const std::vector<Point<1> > &unit_points,
+                            typename dealii::FE_PolyTensor_NP<POLY,1,spacedim>::InternalData &data)
+    {
+      Assert(false, ExcNotImplemented());
+    }
 
+    template <class POLY, int spacedim>
+    void
+    compute_shapes_virtual (const unsigned int            n_shape_functions,
+                            const std::vector<Point<2> > &unit_points,
+                            typename dealii::FE_PolyTensor_NP<POLY,2,spacedim>::InternalData &data)
+    {
+      (void)n_shape_functions;
+
+      for(unsigned int cr = 0 ; cr < 4 ; ++cr )
+        {
+          int x = cr % 2;
+          int y = cr / 2;
+
+          Assert(data.corner_derivatives.size() == n_shape_functions * 4,
+            ExcInternalError());
+
+          data.corner_derivative(cr,0)[0] = (y-1.);
+          data.corner_derivative(cr,1)[0] = (1.-y);
+          data.corner_derivative(cr,2)[0] = -y;
+          data.corner_derivative(cr,3)[0] = y;
+
+          data.corner_derivative(cr,0)[1] = (x-1.);
+          data.corner_derivative(cr,1)[1] = -x;
+          data.corner_derivative(cr,2)[1] = (1.-x);
+          data.corner_derivative(cr,3)[1] = x;
+        }
+    } // compute_shapes_virtual 2D end
+
+    template <class POLY, int spacedim>
+    void
+    compute_shapes_virtual (const unsigned int            n_shape_functions,
+                            const std::vector<Point<3> > &unit_points,
+                            typename dealii::FE_PolyTensor_NP<POLY,3,spacedim>::InternalData &data)
+    {
+      Assert(false, ExcNotImplemented());
+    }
+  }
+}
+
+template <class POLY, int dim, int spacedim>
+void
+FE_PolyTensor_NP<POLY,dim,spacedim>::
+compute_shapes_virtual (const std::vector<Point<dim> > &unit_points,
+                        InternalData &data) const
+{
+  internal::FE_PolyTensor_NP::
+  compute_shapes_virtual<POLY,spacedim> (n_shape_functions, unit_points, data);
+}
+
+template <class POLY, int dim, int spacedim>
+void
+FE_PolyTensor_NP<POLY,dim,spacedim>::compute_mapping_support_points(
+  const typename Triangulation<dim,spacedim>::cell_iterator &cell,
+  std::vector<Point<spacedim> > &a) const
+{
+  a.resize(GeometryInfo<dim>::vertices_per_cell);
+
+  for (unsigned int i=0; i<GeometryInfo<dim>::vertices_per_cell; ++i)
+    a[i] = cell->vertex(i);
+}
 
 //---------------------------------------------------------------------------
 // Fill data of FEValues
@@ -417,16 +507,6 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_values (
   FEValuesData<dim,spacedim>                       &data,
   CellSimilarity::Similarity                  &cell_similarity) const
 {
-
-
-
-// for(unsigned int k=0; k<data.quadrature_points.size(); ++k)
-// {
-//        std::cout << data.quadrature_points[k] << "   JxW: "
-//       << data.JxW_values[k]
-//       <<std::endl;
-// }
-
   // convert data object to internal
   // data for this class. fails with
   // an exception if that is not
@@ -480,7 +560,7 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_values (
 
   const Point<dim> center(cell->center());
   const double measure = cell->measure();
-  const double h = std::pow(measure, 1.0/dim);
+  double h = std::pow(measure, 1.0/dim);
 
   if (flags & (update_values | update_gradients))
     for (unsigned int k=0; k<n_q_points; ++k)
@@ -508,64 +588,187 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_values (
       }
   // ===================== piola-mapping degree of freedoms =====================
 
-  for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
-    {
-      const unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
-                                                                  this->get_nonzero_components(i).first_selected_component()];
+  // for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
+  //   {
+  //     const unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
+  //                                                                 this->get_nonzero_components(i).first_selected_component()];
 
-      if (flags & update_values && cell_similarity != CellSimilarity::translation)
-        {
-          switch (mapping_type)
-            {
+  //     if (flags & update_values && cell_similarity != CellSimilarity::translation)
+  //       {
+  //         switch (mapping_type)
+  //           {
 
-            case mapping_raviart_thomas:
-            case mapping_piola:
-            {
-              std::vector<Tensor<1,dim> > shape_values (n_q_points);
-              mapping.transform(fe_data.shape_values[i], shape_values,
-                                mapping_data, mapping_piola);
-              for (unsigned int k=0; k<n_q_points; ++k)
-                for (unsigned int d=0; d<dim; ++d)
-                  data.shape_values(first+d,k)
-                    = sign_change[i] * shape_values[k][d];
-              break;
-            }
+  //           case mapping_raviart_thomas:
+  //           case mapping_piola:
+  //           {
+  //             std::vector<Tensor<1,dim> > shape_values (n_q_points);
+  //             mapping.transform(fe_data.shape_values[i], shape_values,
+  //                               mapping_data, mapping_piola);
+  //             for (unsigned int k=0; k<n_q_points; ++k)
+  //               for (unsigned int d=0; d<dim; ++d)
+  //                 data.shape_values(first+d,k)
+  //                   = sign_change[i] * shape_values[k][d];
+  //             break;
+  //           }
 
-            default:
-              Assert(false, ExcNotImplemented());
-            }
-        }
+  //           default:
+  //             Assert(false, ExcNotImplemented());
+  //           }
+  //       }
 
-      if (flags & update_gradients && cell_similarity != CellSimilarity::translation)
-        {
-          std::vector<Tensor<2, spacedim > > shape_grads1 (n_q_points);
+  //     if (flags & update_gradients && cell_similarity != CellSimilarity::translation)
+  //       {
+  //         std::vector<Tensor<2, spacedim > > shape_grads1 (n_q_points);
 
-          switch (mapping_type)
-            {
+  //         switch (mapping_type)
+  //           {
 
-            case mapping_raviart_thomas:
-            case mapping_piola_gradient:
-            {
-              std::vector <Tensor<2,spacedim> > input_grads(fe_data.shape_grads[i].size());
-              for (unsigned int k=0; k<input_grads.size(); ++k)
-                input_grads[k] = fe_data.shape_grads[i][k];
+  //           case mapping_raviart_thomas:
+  //           case mapping_piola_gradient:
+  //           {
+  //             std::vector <Tensor<2,spacedim> > input_grads(fe_data.shape_grads[i].size());
+  //             for (unsigned int k=0; k<input_grads.size(); ++k)
+  //               input_grads[k] = fe_data.shape_grads[i][k];
 
-              mapping.transform(input_grads, fe_data.shape_values[i], shape_grads1,
-                                mapping_data, mapping_piola_gradient);
+  //             mapping.transform(input_grads, fe_data.shape_values[i], shape_grads1,
+  //                               mapping_data, mapping_piola_gradient);
 
-              for (unsigned int k=0; k<n_q_points; ++k)
-                for (unsigned int d=0; d<dim; ++d)
-                  data.shape_gradients[first+d][k] = sign_change[i] * shape_grads1[k][d];
-              break;
-            }
+  //             for (unsigned int k=0; k<n_q_points; ++k)
+  //               for (unsigned int d=0; d<dim; ++d)
+  //                 data.shape_gradients[first+d][k] = sign_change[i] * shape_grads1[k][d];
+  //             break;
+  //           }
 
-            default:
-              Assert(false, ExcNotImplemented());
-            }
-        }
+  //           default:
+  //             Assert(false, ExcNotImplemented());
+  //           }
+  //       }
+  //   }
+
+  // ================= no mapped supplemental degree of freedoms ==================
+  // for AC^red_1, fe_degree = 2
+  unsigned int fe_degree = this->degree;
+  Assert(fe_degree>=2, ExcMessage("only for degree>=1"));
+  fe_degree--;
+
+  // 1) Set face normals
+  compute_mapping_support_points(cell, fe_data.mapping_support_points);
+  const Tensor<1,spacedim> *supp_pts = &fe_data.mapping_support_points[0];
+  std::vector<Tensor<1,dim> > Gamma, Tau;
+  Gamma.resize(6);  
+  Tau.resize(6);
+
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    { // face 0: J * [0 -1]^T
+      Tau[0][d] += -1.*supp_pts[k][d]*fe_data.corner_derivative(0,k)[1];
+      // face 1: J * [0 1]^T
+      Tau[1][d] += supp_pts[k][d]*fe_data.corner_derivative(1,k)[1];
+      // face 2: J * [1 0]^T
+      Tau[2][d] += supp_pts[k][d]*fe_data.corner_derivative(0,k)[0];
+      // face 3: J * [-1 0]^T
+      Tau[3][d] += -1.*supp_pts[k][d]*fe_data.corner_derivative(2,k)[0];
     }
 
+  for(unsigned int face_no=0 ; face_no<4; ++face_no)
+  {
+    cross_product(Gamma[face_no], Tau[face_no]);
+    Gamma[face_no] = -Gamma[face_no]/(Gamma[face_no].norm()*h);
+    Tau[face_no] = Tau[face_no]/(Tau[face_no].norm()*h);
+  }
 
+  Tau[4] = Tau[0]-Tau[1];
+  Tau[5] = Tau[2]-Tau[3];
+
+  double sigma_v,eta_v,sigma_h,eta_h;
+  sigma_v = 1.0; eta_v = 1.0;
+  sigma_h = 1.0; eta_h = 1.0;
+
+  // Tensor<1,dim> gamma_t = Gamma[2]-Gamma[3];
+  // gamma_t = gamma_t/gamma_t.norm();
+  // double cost = gamma_t*Gamma[0]/Gamma[0].norm();
+  // sigma_v = 1.0/std::sqrt(1.0-cost*cost);
+  // cost = gamma_t*Gamma[1]/Gamma[1].norm();
+  // eta_v = 1.0/std::sqrt(1.0-cost*cost);
+
+  // gamma_t = Gamma[0] - Gamma[1];
+  // gamma_t = gamma_t/gamma_t.norm();
+  // cost = gamma_t*Gamma[2]/Gamma[2].norm();
+  // sigma_h = 1.0/std::sqrt(1.0-cost*cost);
+  // cost = gamma_t*Gamma[3]/Gamma[3].norm();
+  // eta_h = 1.0/std::sqrt(1.0-cost*cost);
+
+  for(unsigned int k=0; k<n_q_points; ++k)
+  {
+    // get lambda_0-7
+    std::vector<double> pre_pre_phi(8);
+    Point<dim> quad_pt = data.quadrature_points[k];
+    pre_pre_phi[0] = (quad_pt - supp_pts[0])*Gamma[0]; //lambda_0
+    pre_pre_phi[1] = (quad_pt - supp_pts[1])*Gamma[1]; //lambda_1
+    pre_pre_phi[2] = (quad_pt - supp_pts[0])*Gamma[2]; //lambda_2
+    pre_pre_phi[3] = (quad_pt - supp_pts[2])*Gamma[3]; //lambda_3
+    Assert(pre_pre_phi[0]>=-1e-13, ExcMessage("dof point out of cell"));
+    Assert(pre_pre_phi[1]>=-1e-13, ExcMessage("dof point out of cell"));
+    Assert(pre_pre_phi[2]>=-1e-13, ExcMessage("dof point out of cell"));
+    Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
+    pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
+    pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
+    pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+    pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
+    AssertIsFinite(pre_pre_phi[6]);
+    AssertIsFinite(pre_pre_phi[7]);
+
+    for(unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
+    {
+      unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
+                            this->get_nonzero_components(i).first_selected_component()];
+
+      if (flags & update_values)
+      {
+        Tensor<1,dim> sigma;
+        if(i == this->dofs_per_cell-piola_boundary)
+        {
+          double coeff1 = std::pow(pre_pre_phi[5], fe_degree-1)
+                          * pre_pre_phi[2]*pre_pre_phi[3]*(sigma_v+eta_v)
+                          /((sigma_v*pre_pre_phi[0]+eta_v*pre_pre_phi[1])
+                          *(sigma_v*pre_pre_phi[0]+eta_v*pre_pre_phi[1]));
+
+          double coeff2 = (fe_degree == 1)?
+                          0. :
+                          (fe_degree-1)*pre_pre_phi[6]
+                          * std::pow(pre_pre_phi[5], fe_degree-2)
+                          * pre_pre_phi[2]*pre_pre_phi[3]; 
+
+          double coeff3 = pre_pre_phi[6]*std::pow(pre_pre_phi[5], fe_degree-1);
+
+          sigma = coeff1*(pre_pre_phi[1]*Tau[0]-pre_pre_phi[0]*Tau[1])
+                  + coeff2*Tau[5] 
+                  + coeff3*(pre_pre_phi[3]*Tau[2]+pre_pre_phi[2]*Tau[3]);
+        }
+        else
+        {
+          double coeff1 = std::pow(pre_pre_phi[4], fe_degree-1)
+                          * pre_pre_phi[0]*pre_pre_phi[1]*(sigma_h+eta_h)
+                          /((sigma_h*pre_pre_phi[2]+eta_h*pre_pre_phi[3])
+                          *(sigma_h*pre_pre_phi[2]+eta_h*pre_pre_phi[3]));
+
+          double coeff2 = (fe_degree == 1)?
+                          0. :
+                          (fe_degree-1)*pre_pre_phi[7]
+                          * std::pow(pre_pre_phi[4], fe_degree-2)
+                          * pre_pre_phi[0]*pre_pre_phi[1]; 
+
+          double coeff3 = pre_pre_phi[7]*std::pow(pre_pre_phi[4], fe_degree-1);
+
+          sigma = coeff1*(pre_pre_phi[3]*Tau[2]-pre_pre_phi[2]*Tau[3])
+                  + coeff2*Tau[4] 
+                  + coeff3*(pre_pre_phi[1]*Tau[0]+pre_pre_phi[0]*Tau[1]);
+        }
+        for(unsigned int d=0; d<dim; ++d)
+          data.shape_values(first+d,k) = sigma[d];
+      } //if update_values
+    }// for each dof
+  }// for each q-pts
 
   if (flags & update_hessians && cell_similarity != CellSimilarity::translation)
     this->compute_2nd (mapping, cell,
@@ -610,10 +813,10 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_face_values (
                                                 cell->face_rotation(face),
                                                 n_q_points);
 
-//TODO: Size assertions
+  //TODO: Size assertions
 
-// Create table with sign changes, due to the special structure of the RT elements.
-// TODO: Preliminary hack to demonstrate the overall prinicple!
+  // Create table with sign changes, due to the special structure of the RT elements.
+  // TODO: Preliminary hack to demonstrate the overall prinicple!
 
   // Compute eventual sign changes depending
   // on the neighborhood between two faces.
@@ -622,7 +825,7 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_face_values (
   if (mapping_type == mapping_raviart_thomas)
     get_face_sign_change_rt (cell, this->dofs_per_face, sign_change);
 
-// ===================== non-mapping degree of freedoms =====================
+  // ===================== non-mapping degree of freedoms =====================
 
   // some scratch arrays
   std::vector<Tensor<1,dim> > values(0);
@@ -637,7 +840,7 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_face_values (
 
   const Point<dim> center(cell->center());
   const double measure = cell->measure();
-  const double h = std::pow(measure, 1.0/dim);
+  double h = std::pow(measure, 1.0/dim);
 
   if (flags & (update_values | update_gradients))
     for (unsigned int k=0; k<n_q_points; ++k)
@@ -663,60 +866,184 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_face_values (
           }
       }
 
-// ===================== piola-mapping degree of freedoms =====================
+  // ===================== piola-mapping degree of freedoms =====================
 
-  for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
-    {
-      const unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
-                                                                  this->get_nonzero_components(i).first_selected_component()];
-      if (flags & update_values)
-        {
-          switch (mapping_type)
-            {
-            case mapping_raviart_thomas:
-            case mapping_piola:
-            {
-              std::vector<Tensor<1,dim> > shape_values (n_q_points);
-              mapping.transform(make_slice(fe_data.shape_values[i], offset, n_q_points),
-                                shape_values, mapping_data, mapping_piola);
-              for (unsigned int k=0; k<n_q_points; ++k)
-                for (unsigned int d=0; d<dim; ++d)
-                  data.shape_values(first+d,k)
-                    = sign_change[i] * shape_values[k][d];
-              break;
-            }
-            default:
-              Assert(false, ExcNotImplemented());
-            }
-        }
+  // for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
+  //   {
+  //     const unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
+  //                                                                 this->get_nonzero_components(i).first_selected_component()];
+  //     if (flags & update_values)
+  //       {
+  //         switch (mapping_type)
+  //           {
+  //           case mapping_raviart_thomas:
+  //           case mapping_piola:
+  //           {
+  //             std::vector<Tensor<1,dim> > shape_values (n_q_points);
+  //             mapping.transform(make_slice(fe_data.shape_values[i], offset, n_q_points),
+  //                               shape_values, mapping_data, mapping_piola);
+  //             for (unsigned int k=0; k<n_q_points; ++k)
+  //               for (unsigned int d=0; d<dim; ++d)
+  //                 data.shape_values(first+d,k)
+  //                   = sign_change[i] * shape_values[k][d];
+  //             break;
+  //           }
+  //           default:
+  //             Assert(false, ExcNotImplemented());
+  //           }
+  //       }
 
-      if (flags & update_gradients)
-        {
-          std::vector<Tensor<2,dim> > shape_grads1 (n_q_points);
-          //  std::vector<DerivativeForm<1,dim,spacedim> > shape_grads2 (n_q_points);
-          switch (mapping_type)
-            {
-            case mapping_raviart_thomas:
-            case mapping_piola_gradient:
-            {
-              std::vector <Tensor<2,spacedim> > input(fe_data.shape_grads[i].size());
-              for (unsigned int k=0; k<input.size(); ++k)
-                input[k] = fe_data.shape_grads[i][k];
+  //     if (flags & update_gradients)
+  //       {
+  //         std::vector<Tensor<2,dim> > shape_grads1 (n_q_points);
+  //         //  std::vector<DerivativeForm<1,dim,spacedim> > shape_grads2 (n_q_points);
+  //         switch (mapping_type)
+  //           {
+  //           case mapping_raviart_thomas:
+  //           case mapping_piola_gradient:
+  //           {
+  //             std::vector <Tensor<2,spacedim> > input(fe_data.shape_grads[i].size());
+  //             for (unsigned int k=0; k<input.size(); ++k)
+  //               input[k] = fe_data.shape_grads[i][k];
 
-              mapping.transform(make_slice(input, offset, n_q_points), shape_grads1,
-                                mapping_data, mapping_piola_gradient);
+  //             mapping.transform(make_slice(input, offset, n_q_points), shape_grads1,
+  //                               mapping_data, mapping_piola_gradient);
 
-              for (unsigned int k=0; k<n_q_points; ++k)
-                for (unsigned int d=0; d<dim; ++d)
-                  data.shape_gradients[first+d][k] = sign_change[i] * shape_grads1[k][d];
+  //             for (unsigned int k=0; k<n_q_points; ++k)
+  //               for (unsigned int d=0; d<dim; ++d)
+  //                 data.shape_gradients[first+d][k] = sign_change[i] * shape_grads1[k][d];
 
-              break;
-            }
-            default:
-              Assert(false, ExcNotImplemented());
-            }
-        }
+  //             break;
+  //           }
+  //           default:
+  //             Assert(false, ExcNotImplemented());
+  //           }
+  //       }
+  //   }
+
+  // ================= no mapped supplemental degree of freedoms ==================
+  unsigned int fe_degree = this->degree;
+  Assert(fe_degree>=2, ExcMessage("only for degree>=1"));
+  fe_degree--;
+
+  // 1) Set face normals
+  compute_mapping_support_points(cell, fe_data.mapping_support_points);
+  const Tensor<1,spacedim> *supp_pts = &fe_data.mapping_support_points[0];
+  std::vector<Tensor<1,dim> > Gamma, Tau;
+  Gamma.resize(6);  
+  Tau.resize(6);
+
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    { // face 0: J * [0 -1]^T
+      Tau[0][d] += -1.*supp_pts[k][d]*fe_data.corner_derivative(0,k)[1];
+      // face 1: J * [0 1]^T
+      Tau[1][d] += supp_pts[k][d]*fe_data.corner_derivative(1,k)[1];
+      // face 2: J * [1 0]^T
+      Tau[2][d] += supp_pts[k][d]*fe_data.corner_derivative(0,k)[0];
+      // face 3: J * [-1 0]^T
+      Tau[3][d] += -1.*supp_pts[k][d]*fe_data.corner_derivative(2,k)[0];
     }
+
+  for(unsigned int face_no=0 ; face_no<4; ++face_no)
+  {
+    cross_product(Gamma[face_no], Tau[face_no]);
+    Gamma[face_no] = -Gamma[face_no]/(Gamma[face_no].norm()*h);
+    Tau[face_no] = Tau[face_no]/(Tau[face_no].norm()*h);
+  }
+
+  Tau[4] = Tau[0]-Tau[1];
+  Tau[5] = Tau[2]-Tau[3];
+
+  double sigma_v,eta_v,sigma_h,eta_h;
+  sigma_v = 1.0; eta_v = 1.0;
+  sigma_h = 1.0; eta_h = 1.0;
+
+  // Tensor<1,dim> gamma_t = Gamma[2] - Gamma[3];
+  // gamma_t = gamma_t/gamma_t.norm();
+  // double cost = gamma_t*Gamma[0]/Gamma[0].norm();
+  // sigma_v = 1.0/std::sqrt(1.0-cost*cost);
+  // cost = gamma_t*Gamma[1]/Gamma[1].norm();
+  // eta_v = 1.0/std::sqrt(1.0-cost*cost);
+
+  // gamma_t = Gamma[0] - Gamma[1];
+  // gamma_t = gamma_t/gamma_t.norm();
+  // cost = gamma_t*Gamma[2]/Gamma[2].norm();
+  // sigma_h = 1.0/std::sqrt(1.0-cost*cost);
+  // cost = gamma_t*Gamma[3]/Gamma[3].norm();
+  // eta_h = 1.0/std::sqrt(1.0-cost*cost);
+
+  for(unsigned int k=0; k<n_q_points; ++k)
+  {
+    // get lambda_0-7
+    std::vector<double> pre_pre_phi(8);
+    Point<dim> quad_pt = data.quadrature_points[k];
+    pre_pre_phi[0] = (quad_pt - supp_pts[0])*Gamma[0]; //lambda_0
+    pre_pre_phi[1] = (quad_pt - supp_pts[1])*Gamma[1]; //lambda_1
+    pre_pre_phi[2] = (quad_pt - supp_pts[0])*Gamma[2]; //lambda_2
+    pre_pre_phi[3] = (quad_pt - supp_pts[2])*Gamma[3]; //lambda_3
+    Assert(pre_pre_phi[0]>=-1e-13, ExcMessage("dof point out of cell"));
+    Assert(pre_pre_phi[1]>=-1e-13, ExcMessage("dof point out of cell"));
+    Assert(pre_pre_phi[2]>=-1e-13, ExcMessage("dof point out of cell"));
+    Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
+    pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
+    pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
+    pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+    pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
+    AssertIsFinite(pre_pre_phi[6]);
+    AssertIsFinite(pre_pre_phi[7]);
+
+    for(unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
+    {
+      unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
+                            this->get_nonzero_components(i).first_selected_component()];
+
+      if (flags & update_values)
+      {
+        Tensor<1,dim> sigma;
+        if(i==this->dofs_per_cell-piola_boundary)
+        {
+          double coeff1 = std::pow(pre_pre_phi[5], fe_degree-1)
+                          * pre_pre_phi[2]*pre_pre_phi[3]*(sigma_v+eta_v)
+                          /((sigma_v*pre_pre_phi[0]+eta_v*pre_pre_phi[1])*
+                            (sigma_v*pre_pre_phi[0]+eta_v*pre_pre_phi[1]));
+
+          double coeff2 = (fe_degree == 1)?
+                          0. :
+                          (fe_degree-1)*pre_pre_phi[6]
+                          * std::pow(pre_pre_phi[5], fe_degree-2)
+                          * pre_pre_phi[2]*pre_pre_phi[3]; 
+
+          double coeff3 = pre_pre_phi[6]*std::pow(pre_pre_phi[5], fe_degree-1);
+
+          sigma = coeff1*(pre_pre_phi[1]*Tau[0]-pre_pre_phi[0]*Tau[1])
+                  + coeff2*Tau[5] 
+                  + coeff3*(pre_pre_phi[3]*Tau[2]+pre_pre_phi[2]*Tau[3]);
+        }
+        else
+        {
+          double coeff1 = std::pow(pre_pre_phi[4], fe_degree-1)
+                          * pre_pre_phi[0]*pre_pre_phi[1]*(sigma_h+eta_h)
+                          /((sigma_h*pre_pre_phi[2]+eta_h*pre_pre_phi[3])
+                            *(sigma_h*pre_pre_phi[2]+eta_h*pre_pre_phi[3]));
+
+          double coeff2 = (fe_degree == 1)?
+                          0. :
+                          (fe_degree-1)*pre_pre_phi[7]
+                          * std::pow(pre_pre_phi[4], fe_degree-2)
+                          * pre_pre_phi[0]*pre_pre_phi[1]; 
+
+          double coeff3 = pre_pre_phi[7]*std::pow(pre_pre_phi[4], fe_degree-1);
+
+          sigma = coeff1*(pre_pre_phi[3]*Tau[2]-pre_pre_phi[2]*Tau[3])
+                  + coeff2*Tau[4] 
+                  + coeff3*(pre_pre_phi[1]*Tau[0]+pre_pre_phi[0]*Tau[1]);
+        }
+        for(unsigned int d=0; d<dim; ++d)
+          data.shape_values(first+d,k) = sigma[d];
+      } //if update_values
+    }// for each dof
+  }// for each q-pts
 
   if (flags & update_hessians)
     this->compute_2nd (mapping, cell, offset, mapping_data, fe_data, data);
@@ -761,13 +1088,13 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_subface_values (
 
 
 
-//   Assert(mapping_type == independent
-//       || ( mapping_type == independent_on_cartesian
-//            && dynamic_cast<const MappingCartesian<dim>*>(&mapping) != 0),
-//       ExcNotImplemented());
-//TODO: Size assertions
+  //   Assert(mapping_type == independent
+  //       || ( mapping_type == independent_on_cartesian
+  //            && dynamic_cast<const MappingCartesian<dim>*>(&mapping) != 0),
+  //       ExcNotImplemented());
+  //TODO: Size assertions
 
-//TODO: Sign change for the face DoFs!
+  //TODO: Sign change for the face DoFs!
 
   // Compute eventual sign changes depending
   // on the neighborhood between two faces.
@@ -791,7 +1118,7 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_subface_values (
 
   const Point<dim> center(cell->center());
   const double measure = cell->measure();
-  const double h = std::pow(measure, 1.0/dim);
+  double h = std::pow(measure, 1.0/dim);
 
   if (flags & (update_values | update_gradients))
     for (unsigned int k=0; k<n_q_points; ++k)
@@ -817,67 +1144,187 @@ FE_PolyTensor_NP<POLY,dim,spacedim>::fill_fe_subface_values (
           }
       }
 
+  // // ===================== piola-mapping degree of freedoms =====================
 
+  // for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
+  //   {
+  //     const unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
+  //                                                                 this->get_nonzero_components(i).first_selected_component()];
 
+  //     if (flags & update_values)
+  //       {
+  //         switch (mapping_type)
+  //           {
+  //           case mapping_raviart_thomas:
+  //           case mapping_piola:
+  //           {
+  //             std::vector<Tensor<1,dim> > shape_values (n_q_points);
+  //             mapping.transform(make_slice(fe_data.shape_values[i], offset, n_q_points),
+  //                               shape_values, mapping_data, mapping_piola);
+  //             for (unsigned int k=0; k<n_q_points; ++k)
+  //               for (unsigned int d=0; d<dim; ++d)
+  //                 data.shape_values(first+d,k)
+  //                   = sign_change[i] * shape_values[k][d];
+  //             break;
+  //           }
+  //           default:
+  //             Assert(false, ExcNotImplemented());
+  //           }
+  //       }
 
-// ===================== piola-mapping degree of freedoms =====================
+  //     if (flags & update_gradients)
+  //       {
+  //         std::vector<Tensor<2,dim> > shape_grads1 (n_q_points);
 
-  for (unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
+  //         switch (mapping_type)
+  //           {
+
+  //           case mapping_raviart_thomas:
+  //           case mapping_piola_gradient:
+  //           {
+
+  //             std::vector <Tensor<2,spacedim> > input(fe_data.shape_grads[i].size());
+  //             for (unsigned int k=0; k<input.size(); ++k)
+  //               input[k] = fe_data.shape_grads[i][k];
+
+  //             mapping.transform(make_slice(input, offset, n_q_points), shape_grads1,
+  //                               mapping_data, mapping_piola_gradient);
+
+  //             for (unsigned int k=0; k<n_q_points; ++k)
+  //               for (unsigned int d=0; d<dim; ++d)
+  //                 data.shape_gradients[first+d][k] = sign_change[i] * shape_grads1[k][d];
+
+  //             break;
+  //           }
+
+  //           default:
+  //             Assert(false, ExcNotImplemented());
+  //           }
+  //       }
+  //   }
+
+  // ================= no mapped supplemental degree of freedoms ==================
+  unsigned int fe_degree = this->degree;
+  Assert(fe_degree>=1, ExcMessage("only for degree>=1"));
+
+  // 1) Set face normals
+  compute_mapping_support_points(cell, fe_data.mapping_support_points);
+  const Tensor<1,spacedim> *supp_pts = &fe_data.mapping_support_points[0];
+  std::vector<Tensor<1,dim> > Gamma, Tau;
+  Gamma.resize(6);  
+  Tau.resize(6);
+
+  for(unsigned int k = 0; k<n_shape_functions; ++k)
+    for(unsigned int d = 0; d<dim; ++d)
+    { // face 0: J * [0 -1]^T
+      Tau[0][d] += -1.*supp_pts[k][d]*fe_data.corner_derivative(0,k)[1];
+      // face 1: J * [0 1]^T
+      Tau[1][d] += supp_pts[k][d]*fe_data.corner_derivative(1,k)[1];
+      // face 2: J * [1 0]^T
+      Tau[2][d] += supp_pts[k][d]*fe_data.corner_derivative(0,k)[0];
+      // face 3: J * [-1 0]^T
+      Tau[3][d] += -1.*supp_pts[k][d]*fe_data.corner_derivative(2,k)[0];
+    }
+
+  for(unsigned int face_no=0 ; face_no<4; ++face_no)
+  {
+    cross_product(Gamma[face_no], Tau[face_no]);
+    Gamma[face_no] = -Gamma[face_no]/(Gamma[face_no].norm()*h);
+    Tau[face_no] = Tau[face_no]/(Tau[face_no].norm()*h);
+  }
+
+  Tau[4] = Tau[0]-Tau[1];
+  Tau[5] = Tau[2]-Tau[3];
+
+  double sigma_v,eta_v,sigma_h,eta_h;
+  sigma_v = 1.0; eta_v = 1.0;
+  sigma_h = 1.0; eta_h = 1.0;
+
+  // Tensor<1,dim> gamma_t = Gamma[2] - Gamma[3];
+  // gamma_t = gamma_t/gamma_t.norm();
+  // double cost = gamma_t*Gamma[0]/Gamma[0].norm();
+  // sigma_v = 1.0/std::sqrt(1.0-cost*cost);
+  // cost = gamma_t*Gamma[1]/Gamma[1].norm();
+  // eta_v = 1.0/std::sqrt(1.0-cost*cost);
+
+  // gamma_t = Gamma[0] - Gamma[1];
+  // gamma_t = gamma_t/gamma_t.norm();
+  // cost = gamma_t*Gamma[2]/Gamma[2].norm();
+  // sigma_h = 1.0/std::sqrt(1.0-cost*cost);
+  // cost = gamma_t*Gamma[3]/Gamma[3].norm();
+  // eta_h = 1.0/std::sqrt(1.0-cost*cost);
+  
+  for(unsigned int k=0; k<n_q_points; ++k)
+  {
+    // get lambda_0-7
+    std::vector<double> pre_pre_phi(8);
+    Point<dim> quad_pt = data.quadrature_points[k];
+    pre_pre_phi[0] = (quad_pt - supp_pts[0])*Gamma[0]; //lambda_0
+    pre_pre_phi[1] = (quad_pt - supp_pts[1])*Gamma[1]; //lambda_1
+    pre_pre_phi[2] = (quad_pt - supp_pts[0])*Gamma[2]; //lambda_2
+    pre_pre_phi[3] = (quad_pt - supp_pts[2])*Gamma[3]; //lambda_3
+    Assert(pre_pre_phi[0]>=-1e-13, ExcMessage("dof point out of cell"));
+    Assert(pre_pre_phi[1]>=-1e-13, ExcMessage("dof point out of cell"));
+    Assert(pre_pre_phi[2]>=-1e-13, ExcMessage("dof point out of cell"));
+    Assert(pre_pre_phi[3]>=-1e-13, ExcMessage("dof point out of cell"));
+    pre_pre_phi[4] = pre_pre_phi[0] - pre_pre_phi[1]; //lambda_V
+    pre_pre_phi[5] = pre_pre_phi[2] - pre_pre_phi[3]; //lambda_H
+    pre_pre_phi[6] = pre_pre_phi[4] / (sigma_v*pre_pre_phi[0] + eta_v*pre_pre_phi[1]); //R_V
+    pre_pre_phi[7] = pre_pre_phi[5] / (sigma_h*pre_pre_phi[2] + eta_h*pre_pre_phi[3]); //R_H
+    AssertIsFinite(pre_pre_phi[6]);
+    AssertIsFinite(pre_pre_phi[7]);
+
+    for(unsigned int i=this->dofs_per_cell-piola_boundary; i<this->dofs_per_cell; ++i)
     {
-      const unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
-                                                                  this->get_nonzero_components(i).first_selected_component()];
+      unsigned int first = data.shape_function_to_row_table[i * this->n_components() +
+                            this->get_nonzero_components(i).first_selected_component()];
 
       if (flags & update_values)
+      {
+        Tensor<1,dim> sigma;
+        if(i==this->dofs_per_cell-piola_boundary)
         {
-          switch (mapping_type)
-            {
-            case mapping_raviart_thomas:
-            case mapping_piola:
-            {
-              std::vector<Tensor<1,dim> > shape_values (n_q_points);
-              mapping.transform(make_slice(fe_data.shape_values[i], offset, n_q_points),
-                                shape_values, mapping_data, mapping_piola);
-              for (unsigned int k=0; k<n_q_points; ++k)
-                for (unsigned int d=0; d<dim; ++d)
-                  data.shape_values(first+d,k)
-                    = sign_change[i] * shape_values[k][d];
-              break;
-            }
-            default:
-              Assert(false, ExcNotImplemented());
-            }
-        }
+          double coeff1 = std::pow(pre_pre_phi[5], fe_degree-1)
+                          * pre_pre_phi[2]*pre_pre_phi[3]*(sigma_v+eta_v)
+                          /((sigma_v*pre_pre_phi[0]+eta_v*pre_pre_phi[1])
+                          *(sigma_v*pre_pre_phi[0]+eta_v*pre_pre_phi[1]));
 
-      if (flags & update_gradients)
+          double coeff2 = (fe_degree == 1)?
+                          0. :
+                          (fe_degree-1)*pre_pre_phi[6]
+                          * std::pow(pre_pre_phi[5], fe_degree-2)
+                          * pre_pre_phi[2]*pre_pre_phi[3]; 
+
+          double coeff3 = pre_pre_phi[6]*std::pow(pre_pre_phi[5], fe_degree-1);
+
+          sigma = coeff1*(pre_pre_phi[1]*Tau[0]-pre_pre_phi[0]*Tau[1])
+                  + coeff2*Tau[5] 
+                  + coeff3*(pre_pre_phi[3]*Tau[2]+pre_pre_phi[2]*Tau[3]);
+        }
+        else
         {
-          std::vector<Tensor<2,dim> > shape_grads1 (n_q_points);
+          double coeff1 = std::pow(pre_pre_phi[4], fe_degree-1)
+                          * pre_pre_phi[0]*pre_pre_phi[1]*(sigma_h+eta_h)
+                          /((sigma_h*pre_pre_phi[2]+eta_h*pre_pre_phi[3])
+                          *(sigma_h*pre_pre_phi[2]+eta_h*pre_pre_phi[3]));
 
-          switch (mapping_type)
-            {
+          double coeff2 = (fe_degree == 1)?
+                          0. :
+                          (fe_degree-1)*pre_pre_phi[7]
+                          * std::pow(pre_pre_phi[4], fe_degree-2)
+                          * pre_pre_phi[0]*pre_pre_phi[1]; 
 
-            case mapping_raviart_thomas:
-            case mapping_piola_gradient:
-            {
+          double coeff3 = pre_pre_phi[7]*std::pow(pre_pre_phi[4], fe_degree-1);
 
-              std::vector <Tensor<2,spacedim> > input(fe_data.shape_grads[i].size());
-              for (unsigned int k=0; k<input.size(); ++k)
-                input[k] = fe_data.shape_grads[i][k];
-
-              mapping.transform(make_slice(input, offset, n_q_points), shape_grads1,
-                                mapping_data, mapping_piola_gradient);
-
-              for (unsigned int k=0; k<n_q_points; ++k)
-                for (unsigned int d=0; d<dim; ++d)
-                  data.shape_gradients[first+d][k] = sign_change[i] * shape_grads1[k][d];
-
-              break;
-            }
-
-            default:
-              Assert(false, ExcNotImplemented());
-            }
+          sigma = coeff1*(pre_pre_phi[3]*Tau[2]-pre_pre_phi[2]*Tau[3])
+                  + coeff2*Tau[4] 
+                  + coeff3*(pre_pre_phi[1]*Tau[0]+pre_pre_phi[0]*Tau[1]);
         }
-    }
+        for(unsigned int d=0; d<dim; ++d)
+          data.shape_values(first+d,k) = sigma[d];
+      } //if update_values
+    }// for each dof
+  }// for each q-pts
 
   if (flags & update_hessians)
     this->compute_2nd (mapping, cell, offset, mapping_data, fe_data, data);
